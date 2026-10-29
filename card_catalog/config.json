@@ -1,0 +1,60 @@
+{
+  "project_name": "Rogue's Passage",
+  "mirrodin_release_date": "2003-10-02",
+  "eligible_frame_values": [
+    "2003",
+    "2015",
+    "future"
+  ],
+  "eligible_rarities": [
+    "common",
+    "uncommon"
+  ],
+  "eligible_colors": [
+    "W",
+    "U",
+    "B",
+    "R",
+    "G"
+  ],
+  "starter_cards_per_color": 10,
+  "max_copies_per_card_in_pool": 4,
+  "require_paper_game": true,
+  "exclude_tokens": true,
+  "exclude_funny_sets": true,
+  "excluded_layouts": [
+    "token",
+    "double_faced_token",
+    "emblem",
+    "art_series",
+    "augment",
+    "host",
+    "planar",
+    "scheme",
+    "vanguard",
+    "phenomenon",
+    "conspiracy",
+    "reversible_card"
+  ],
+  "excluded_set_types": [
+    "funny"
+  ],
+  "excluded_border_colors": [
+    "silver",
+    "gold"
+  ],
+  "excluded_oracle_text_regex": [
+    "(?i)\\\\bante\\\\b",
+    "(?i)\\\\bopen an attraction\\\\b",
+    "(?i)\\\\bvisit your attraction\\\\b",
+    "(?i)\\\\bsticker\\\\b",
+    "(?i)\\\\bsubgame\\\\b"
+  ],
+  "random_seed": null,
+  "excluded_set_codes": [
+    "ugl",
+    "unh",
+    "ust",
+    "unf"
+  ]
+}
