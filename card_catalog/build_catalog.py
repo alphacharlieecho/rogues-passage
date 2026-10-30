@@ -154,8 +154,11 @@ def iter_bulk_cards(path: Path) -> Iterable[dict[str, Any]]:
                 buffer = buffer[end:]
         else:
             # JSONL bulk data: each line is a complete card object.
+            # The stream was rewound to the first non-whitespace character.
+            # Read the whole first line from there (prefixing `first` again
+            # would duplicate the first character and corrupt the JSON).
             if first:
-                line = first + handle.readline()
+                line = handle.readline()
                 if line.strip():
                     yield json.loads(line)
             for line in handle:
@@ -164,6 +167,12 @@ def iter_bulk_cards(path: Path) -> Iterable[dict[str, Any]]:
 
 
 def get_card_colors(card: dict[str, Any]) -> list[str]:
+    """Return actual card colors, deliberately ignoring color_identity.
+
+    Rogue's Passage uses card color for starter eligibility. Off-color costs in
+    activated abilities, kicker, flashback, and similar text do not disqualify
+    an otherwise single-color card.
+    """
     colors = card.get("colors")
     if colors is not None:
         return list(colors)
@@ -203,8 +212,15 @@ def card_is_eligible_printing(card: dict[str, Any], config: dict[str, Any]) -> t
         return False, "rarity"
     if card.get("frame") not in config.get("eligible_frame_values", ["2003", "2015", "future"]):
         return False, "frame"
-    if str(card.get("released_at", "")) < str(config.get("mirrodin_release_date", "2003-10-02")):
+    released_at = str(card.get("released_at", ""))
+    if released_at < str(config.get("mirrodin_release_date", "2003-10-02")):
         return False, "release_date"
+    # Preview/upcoming cards are intentionally eligible by default. Set
+    # allow_future_printings=false to enforce a build-date upper cutoff.
+    if not config.get("allow_future_printings", True):
+        build_date = str(config.get("build_date") or date.today().isoformat())
+        if released_at > build_date:
+            return False, "future_release_date"
     if card.get("border_color") in config.get("excluded_border_colors", ["silver", "gold"]):
         return False, "border_color"
     if config.get("exclude_funny_sets", True):
@@ -302,9 +318,23 @@ def build_catalog(cards: Iterable[dict[str, Any]], config: dict[str, Any]) -> tu
         for oid, card in by_oracle.items()
     ]
     catalog.sort(key=lambda c: (c["color"], c["name"].casefold()))
+    future_printings = [
+        printing
+        for printings in printings_by_oracle.values()
+        for printing in printings
+        if str(printing.get("released_at", "")) > date.today().isoformat()
+    ]
+    future_only_cards = sum(
+        1 for printings in printings_by_oracle.values()
+        if printings and all(str(p.get("released_at", "")) > date.today().isoformat() for p in printings)
+    )
     report = {
         "project_name": config.get("project_name", "Rogue's Passage"),
         "source": "Scryfall Default Cards bulk data",
+        "color_eligibility_mode": config.get("color_eligibility_mode", "card_color"),
+        "allow_future_printings": config.get("allow_future_printings", True),
+        "future_dated_eligible_printings": len(future_printings),
+        "cards_with_only_future_printings": future_only_cards,
         "printings_examined": printing_count,
         "unique_eligible_cards": len(catalog),
         "eligible_by_color": {

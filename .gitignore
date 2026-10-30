@@ -4,3 +4,5 @@ card_catalog/cache/
 card_catalog/catalog.json
 card_catalog/pool_report.json
 card_catalog/build.log
+__pycache__/
+*.py[cod]

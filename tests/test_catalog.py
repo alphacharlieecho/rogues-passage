@@ -1,4 +1,7 @@
+import gzip
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -47,8 +50,10 @@ CONFIG = {
     "excluded_layouts": ["token", "double_faced_token"],
     "excluded_set_types": ["funny"],
     "excluded_border_colors": ["silver", "gold"],
-    "excluded_oracle_text_regex": [r"(?i)\\bante\\b"],
+    "excluded_oracle_text_regex": [r"(?i)\bante\b"],
     "random_seed": 42,
+    "color_eligibility_mode": "card_color",
+    "allow_future_printings": True,
 }
 
 
@@ -75,6 +80,38 @@ class CatalogTests(unittest.TestCase):
         self.assertFalse(build_catalog.card_is_eligible_printing(
             printing("b", "Old Set", "W", released_at="2001-01-01"), CONFIG)[0])
 
+    def test_card_color_mode_ignores_off_color_identity(self):
+        card = printing(
+            "off-color-ability", "Off-color Ability", "B",
+            color_identity=["B", "G"],
+            oracle_text="{G}: This creature gets +1/+1 until end of turn.",
+        )
+        self.assertTrue(build_catalog.card_is_eligible_printing(card, CONFIG)[0])
+
+    def test_multicolor_card_is_still_rejected_in_card_color_mode(self):
+        card = printing(
+            "multi", "Multicolor Card", "B",
+            colors=["B", "G"], color_identity=["B", "G"],
+        )
+        self.assertEqual(
+            build_catalog.card_is_eligible_printing(card, CONFIG),
+            (False, "not_single_chosen_color"),
+        )
+
+    def test_future_preview_printings_are_allowed_by_default(self):
+        card = printing("future", "Preview Card", "U", released_at="2099-12-31")
+        self.assertTrue(build_catalog.card_is_eligible_printing(card, CONFIG)[0])
+
+    def test_future_printings_can_be_disabled_explicitly(self):
+        config = {**CONFIG, "allow_future_printings": False, "build_date": "2026-10-30"}
+        future = printing("future", "Future Card", "U", released_at="2026-11-13")
+        current = printing("current", "Current Card", "U", released_at="2026-10-30")
+        self.assertEqual(
+            build_catalog.card_is_eligible_printing(future, config),
+            (False, "future_release_date"),
+        )
+        self.assertTrue(build_catalog.card_is_eligible_printing(current, config)[0])
+
     def test_groups_printings_by_oracle_id(self):
         cards = [
             printing("same", "Same Card", "G", set="one"),
@@ -98,6 +135,31 @@ class CatalogTests(unittest.TestCase):
             self.assertEqual(len(matching), 10)
             from collections import Counter
             self.assertLessEqual(max(Counter(c["oracle_id"] for c in matching).values()), 4)
+
+    def test_configured_oracle_exclusions_match_word_boundaries(self):
+        config_path = Path(__file__).resolve().parents[1] / "card_catalog" / "config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        banned = printing("banned", "Ante Card", "B", oracle_text="Each player must ante a card.")
+        allowed = printing("allowed", "Advantage Card", "B", oracle_text="Gain an advantage.")
+        self.assertEqual(build_catalog.card_is_eligible_printing(banned, config), (False, "playability_exclusion"))
+        self.assertTrue(build_catalog.card_is_eligible_printing(allowed, config)[0])
+
+    def test_iter_bulk_cards_reads_json_array_jsonl_and_gzip(self):
+        cards = [{"name": "One"}, {"name": "Two"}]
+        with tempfile.TemporaryDirectory() as temp:
+            temp_path = Path(temp)
+            array_path = temp_path / "cards.json"
+            array_path.write_text(json.dumps(cards), encoding="utf-8")
+            self.assertEqual(list(build_catalog.iter_bulk_cards(array_path)), cards)
+
+            jsonl_path = temp_path / "cards.jsonl"
+            jsonl_path.write_text("\n".join(json.dumps(card) for card in cards) + "\n", encoding="utf-8")
+            self.assertEqual(list(build_catalog.iter_bulk_cards(jsonl_path)), cards)
+
+            gzip_path = temp_path / "cards.jsonl.gz"
+            with gzip.open(gzip_path, "wt", encoding="utf-8") as handle:
+                handle.write("\n".join(json.dumps(card) for card in cards) + "\n")
+            self.assertEqual(list(build_catalog.iter_bulk_cards(gzip_path)), cards)
 
     def test_reports_shortage_when_no_cards_available(self):
         with self.assertRaises(ValueError):

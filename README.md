@@ -38,10 +38,11 @@ python card_catalog/build_catalog.py --config card_catalog/config.json
 
 ## Current card rules
 
-- The printing must have a release date on or after `2003-10-02` (Mirrodin's release date).
+- The printing must have a release date on or after `2003-10-02` (Mirrodin's release date). There is no upper release-date cutoff by default.
 - The printing must use Scryfall frame value `2003`, `2015`, or `future`.
 - The printing must be common or uncommon.
-- The card must be a single-color card matching one of W/U/B/R/G.
+- The card must be a single-color card matching one of W/U/B/R/G, based on actual card colors (`colors`), not color identity. Off-color activated abilities, kicker, flashback, and similar costs do not disqualify it.
+- Upcoming and previewed cards are allowed by default, even when their release date is after the build date. Set `allow_future_printings` to `false` to enforce a current-date cutoff.
 - Colorless cards, multicolored cards, lands, non-paper-only cards, tokens, and nontraditional layouts are excluded.
 - The card must have at least one qualifying printing. Multiple qualifying printings are grouped under one Oracle ID.
 - Starter generation chooses 10 cards per selected color, with a maximum of four copies of any Oracle ID in a generated pool.

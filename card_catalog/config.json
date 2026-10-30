@@ -44,11 +44,11 @@
     "gold"
   ],
   "excluded_oracle_text_regex": [
-    "(?i)\\\\bante\\\\b",
-    "(?i)\\\\bopen an attraction\\\\b",
-    "(?i)\\\\bvisit your attraction\\\\b",
-    "(?i)\\\\bsticker\\\\b",
-    "(?i)\\\\bsubgame\\\\b"
+    "(?i)\\bante\\b",
+    "(?i)\\bopen an attraction\\b",
+    "(?i)\\bvisit your attraction\\b",
+    "(?i)\\bsticker\\b",
+    "(?i)\\bsubgame\\b"
   ],
   "random_seed": null,
   "excluded_set_codes": [
@@ -56,5 +56,7 @@
     "unh",
     "ust",
     "unf"
-  ]
+  ],
+  "color_eligibility_mode": "card_color",
+  "allow_future_printings": true
 }
