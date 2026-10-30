@@ -22,6 +22,7 @@ The script downloads Scryfall's **Default Cards** bulk file into `card_catalog/c
 
 - `card_catalog/catalog.json` — unique eligible cards and qualifying printings
 - `card_catalog/pool_report.json` — eligible card counts by color and all 10 color-pair validation results
+- `card_catalog/tts_catalog.json` — compact card/image catalog for Tabletop Simulator
 - `card_catalog/build.log` — build log
 
 To test without downloading anything:
@@ -56,4 +57,4 @@ The frame values and release cutoff are explicit configuration choices. The cata
 
 ## Next milestone
 
-Once the catalog has been generated and reviewed, connect the exported JSON to Tabletop Simulator's Lua scripts and implement color selection and starter-pool generation in-game.
+The first Tabletop Simulator foundation is in `tts_mod/Global.lua`. See `tts_mod/README.md` for hosting the compact catalog, installing the script, and testing the lobby and starter-pool flow.

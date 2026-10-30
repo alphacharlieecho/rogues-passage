@@ -26,6 +26,7 @@ CACHE_DIR = Path(__file__).with_name("cache")
 DEFAULT_CATALOG = Path(__file__).with_name("catalog.json")
 DEFAULT_REPORT = Path(__file__).with_name("pool_report.json")
 DEFAULT_LOG = Path(__file__).with_name("build.log")
+DEFAULT_TTS_CATALOG = Path(__file__).with_name("tts_catalog.json")
 BULK_METADATA_URL = "https://api.scryfall.com/bulk-data"
 USER_AGENT = "RoguesPassageCardCatalog/0.1 (local hobby project)"
 ACCEPT = "application/json;q=0.9,*/*;q=0.8"
@@ -373,6 +374,41 @@ def generate_pool(catalog: list[dict[str, Any]], colors: tuple[str, str], config
     return {"colors": list(colors), "cards": result}
 
 
+def build_tts_catalog(catalog: list[dict[str, Any]]) -> dict[str, Any]:
+    """Create a small, TTS-friendly catalog with one representative image per card."""
+    cards = []
+    for card in catalog:
+        image_url = None
+        representative_printing = None
+        for printing in card.get("printings", []):
+            image_uris = printing.get("image_uris") or {}
+            image_url = image_uris.get("normal") or image_uris.get("large") or image_uris.get("png") or image_uris.get("small")
+            if image_url:
+                representative_printing = printing
+                break
+        if not image_url:
+            continue
+        cards.append({
+            "oracle_id": card["oracle_id"],
+            "name": card["name"],
+            "color": card["color"],
+            "mana_cost": card.get("mana_cost", ""),
+            "cmc": card.get("cmc", 0),
+            "type_line": card.get("type_line", ""),
+            "oracle_text": card.get("oracle_text", ""),
+            "power": card.get("power"),
+            "toughness": card.get("toughness"),
+            "image_url": image_url,
+            "scryfall_uri": representative_printing.get("scryfall_uri") if representative_printing else None,
+        })
+    return {
+        "project_name": "Rogue's Passage",
+        "schema_version": 1,
+        "generated_by": "RoguesPassageCardCatalog/0.2",
+        "cards": cards,
+    }
+
+
 def validate_all_color_pairs(catalog: list[dict[str, Any]], config: dict[str, Any]) -> list[dict[str, Any]]:
     seed = config.get("random_seed")
     results = []
@@ -398,6 +434,8 @@ def main() -> int:
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--catalog-out", type=Path, default=DEFAULT_CATALOG)
     parser.add_argument("--report-out", type=Path, default=DEFAULT_REPORT)
+    parser.add_argument("--tts-catalog-out", type=Path, default=DEFAULT_TTS_CATALOG,
+                        help="Compact card/image catalog for Tabletop Simulator WebRequest loading.")
     parser.add_argument("--input", type=Path, help="Optional local Scryfall JSON/JSONL bulk file for offline builds.")
     parser.add_argument("--no-download", action="store_true", help="Use cached bulk data only.")
     args = parser.parse_args()
@@ -440,6 +478,7 @@ def main() -> int:
 
         args.catalog_out.parent.mkdir(parents=True, exist_ok=True)
         args.report_out.parent.mkdir(parents=True, exist_ok=True)
+        args.tts_catalog_out.parent.mkdir(parents=True, exist_ok=True)
         args.catalog_out.write_text(json.dumps({
             "project_name": config.get("project_name", "Rogue's Passage"),
             "schema_version": 1,
@@ -447,9 +486,14 @@ def main() -> int:
             "cards": catalog,
         }, indent=2, ensure_ascii=False), encoding="utf-8")
         args.report_out.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        tts_catalog = build_tts_catalog(catalog)
+        args.tts_catalog_out.write_text(json.dumps(tts_catalog, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
+        report["tts_export_cards"] = len(tts_catalog["cards"])
+        args.report_out.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
         logging.info("Catalog written: %s (%d unique cards)", args.catalog_out, len(catalog))
         logging.info("Report written: %s", args.report_out)
+        logging.info("TTS catalog written: %s (%d cards)", args.tts_catalog_out, len(tts_catalog["cards"]))
         failures = [r for r in report["color_pair_validation"] if r["status"] != "ok"]
         if failures:
             logging.warning("%d of 10 color pairs could not produce a valid pool.", len(failures))
