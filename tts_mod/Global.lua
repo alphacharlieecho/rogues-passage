@@ -225,9 +225,114 @@ end
 
 function RP_DeckManager.spawnStarterPool(player, record)
     if not record or not record.starter_pool then return end
+
     local cards = record.starter_pool.cards or {}
+    if #cards == 0 then
+        print("[Rogue's Passage] Cannot spawn an empty starter pool.")
+        return
+    end
+
+    local hand = player.getHandTransform()
+    if not hand or not hand.position then
+        print("[Rogue's Passage] Cannot spawn starter deck: hand transform is unavailable for " .. tostring(player.color))
+        return
+    end
+
+    -- Shuffle the physical deck order independently of the two selected color pools.
+    RP_DeckManager.shuffle(cards)
+
+    local yaw = (hand.rotation and hand.rotation.y) or 0
+    local radians = math.rad(yaw)
+    local position = {
+        x = hand.position.x + 8 * math.sin(radians),
+        y = 1.5,
+        z = hand.position.z + 8 * math.cos(radians),
+    }
+    local rotation = { 0, yaw, 0 }
+
+    -- A TTS custom deck maps each CardID to its own one-card image sheet.
+    -- This lets every card retain an independent face URL and a shared back.
+    local deckIDs = {}
+    local containedObjects = {}
+    local customDeck = {}
+
     for index, card in ipairs(cards) do
-        RP_DeckManager.spawnCard(card, player.color, index, #cards)
+        local deckKey = tostring(index)
+        local cardID = index * 100
+        local customCard = {
+            FaceURL = card.image_url,
+            BackURL = RP_CONFIG.CARD_BACK_URL or "",
+            NumWidth = 1,
+            NumHeight = 1,
+            BackIsHidden = true,
+        }
+        customDeck[deckKey] = customCard
+        table.insert(deckIDs, cardID)
+
+        local metadata = {
+            rp_oracle_id = card.oracle_id,
+            rp_instance_id = card.instance_id,
+            rp_owner_id = card.owner_id,
+            rp_color = card.color,
+            rp_card_type_line = card.type_line or "",
+            rp_mana_cost = card.mana_cost or "",
+            rp_cmc = card.cmc or 0,
+            rp_power = card.power,
+            rp_toughness = card.toughness,
+            rp_upgrades = card.upgrades or {},
+        }
+
+        table.insert(containedObjects, {
+            Name = "Card",
+            Nickname = card.name or "Unknown Card",
+            Description = card.oracle_text or "",
+            GMNotes = JSON.encode(metadata),
+            Transform = {
+                posX = 0, posY = 0, posZ = 0,
+                rotX = 0, rotY = 0, rotZ = 0,
+                scaleX = 1, scaleY = 1, scaleZ = 1,
+            },
+            CardID = cardID,
+        })
+    end
+
+    local deckData = {
+        Name = "Deck",
+        Nickname = tostring(record.name or player.steam_name or "Player") .. "'s Rogue's Passage Starter Pool",
+        Description = "20-card starter pool. Individual card metadata is stored in each card's GM Notes.",
+        Transform = {
+            posX = position.x, posY = position.y, posZ = position.z,
+            rotX = rotation[1], rotY = rotation[2], rotZ = rotation[3],
+            scaleX = 1, scaleY = 1, scaleZ = 1,
+        },
+        DeckIDs = deckIDs,
+        CustomDeck = customDeck,
+        ContainedObjects = containedObjects,
+    }
+
+    local ok, result = pcall(function()
+        return spawnObjectData({
+            data = deckData,
+            position = position,
+            rotation = rotation,
+            callback_function = function(object)
+                if not object then
+                    print("[Rogue's Passage] Starter deck spawn callback returned no object.")
+                    return
+                end
+                record.starter_pool.deck_guid = object.getGUID()
+                object.setName(tostring(record.name or player.steam_name or "Player") .. "'s Starter Pool")
+                object.setDescription("20-card Rogue's Passage starter pool.")
+                print("[Rogue's Passage] Spawned starter deck with " .. tostring(#cards)
+                    .. " cards (GUID " .. tostring(record.starter_pool.deck_guid) .. ").")
+            end,
+        })
+    end)
+
+    if not ok then
+        print("[Rogue's Passage] Starter deck spawn failed: " .. tostring(result))
+    elseif not result then
+        print("[Rogue's Passage] Starter deck spawn returned no object.")
     end
 end
 
