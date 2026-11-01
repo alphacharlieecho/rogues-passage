@@ -252,9 +252,20 @@ function RP_loadPlayerColorPool(player, color)
                 return
             end
             local decodedOk, decoded = pcall(function() return JSON.decode(request.text or "") end)
-            if not decodedOk or type(decoded) ~= "table" or decoded.color ~= color
-                or decoded.variant ~= variant or type(decoded.cards) ~= "table"
-                or #decoded.cards ~= RP_CONFIG.CARDS_PER_COLOR then
+            local validPool = decodedOk and type(decoded) == "table"
+                and decoded.color == color and decoded.variant == variant
+                and type(decoded.cards) == "table"
+                and #decoded.cards == RP_CONFIG.CARDS_PER_COLOR
+            if validPool then
+                for _, card in ipairs(decoded.cards) do
+                    if type(card) ~= "table" or card.color ~= color
+                        or not card.oracle_id or not card.image_url then
+                        validPool = false
+                        break
+                    end
+                end
+            end
+            if not validPool then
                 RP_pool_errors[requestKey] = "Starter pool file is invalid or has an unsupported schema."
                 print("[Rogue's Passage] " .. RP_pool_errors[requestKey] .. " (" .. color .. ")")
                 RP_refreshUI()
