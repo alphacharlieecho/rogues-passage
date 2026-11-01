@@ -2,12 +2,12 @@
 -- Phase 2 foundation: player registration, two-color selection, starter pools,
 -- and persistent campaign metadata.
 --
--- IMPORTANT: Set CATALOG_URL to the public raw URL of card_catalog/tts_catalog.json.
+-- TTS downloads only small, pre-generated one-color starter pools.
 
 RP_CONFIG = {
-    CATALOG_BASE_URL = "https://raw.githubusercontent.com/alphacharlieecho/rogues-passage/main/card_catalog/tts_catalogs/tts_catalog_",
+    STARTER_POOL_BASE_URL = "https://raw.githubusercontent.com/alphacharlieecho/rogues-passage/main/card_catalog/tts_starter_pools/starter_pool_",
     CARDS_PER_COLOR = 10,
-    MAX_COPIES_PER_ORACLE_ID = 4,
+    STARTER_POOL_VARIANTS = 100,
     CARD_BACK_URL = nil, -- Optional; leave nil to use TTS's default card back.
 }
 
@@ -24,13 +24,9 @@ RP_campaign = {
     players = {},
     next_instance_id = 1,
 }
-RP_catalogs = {}
-RP_catalog_loading = {}
-RP_catalog_errors = {}
-RP_catalog_queue = {}
-RP_catalog_queued = {}
-RP_catalog_active = nil
-RP_catalog_request_id = 0
+RP_player_color_pools = {}
+RP_pool_loading = {}
+RP_pool_errors = {}
 
 RP_PlayerManager = {}
 RP_DeckManager = {}
@@ -70,6 +66,7 @@ function RP_PlayerManager.register(player)
         name = player.steam_name or player.name or player.color,
         color = player.color,
         selected_colors = {},
+        selected_pool_variants = {},
         starter_pool = nil,
         coins = 0,
         upgrades = {},
@@ -77,6 +74,7 @@ function RP_PlayerManager.register(player)
     }
     record.name = player.steam_name or player.name or record.name or player.color
     record.color = player.color
+    record.selected_pool_variants = record.selected_pool_variants or {}
     record.last_seen = os.time()
     RP_campaign.players[key] = record
     return record
@@ -128,42 +126,6 @@ function RP_DeckManager.shuffle(list)
     return list
 end
 
-function RP_DeckManager.chooseCards(color)
-    local colorCatalog = RP_catalogs[color]
-    if not colorCatalog or type(colorCatalog.cards) ~= "table" then
-        return nil, "The " .. rp_colorName(color) .. " card catalog has not loaded yet."
-    end
-
-    local eligible = {}
-    for _, card in ipairs(colorCatalog.cards) do
-        if card.color == color and card.image_url and card.oracle_id then
-            table.insert(eligible, card)
-        end
-    end
-
-    if #eligible < RP_CONFIG.CARDS_PER_COLOR then
-        return nil, string.format("Only %d usable %s cards were found; %d are required.",
-            #eligible, rp_colorName(color), RP_CONFIG.CARDS_PER_COLOR)
-    end
-
-    RP_DeckManager.shuffle(eligible)
-    local chosen = {}
-    local copies = {}
-    for _, card in ipairs(eligible) do
-        local count = copies[card.oracle_id] or 0
-        if count < RP_CONFIG.MAX_COPIES_PER_ORACLE_ID then
-            table.insert(chosen, card)
-            copies[card.oracle_id] = count + 1
-            if #chosen == RP_CONFIG.CARDS_PER_COLOR then break end
-        end
-    end
-
-    if #chosen ~= RP_CONFIG.CARDS_PER_COLOR then
-        return nil, string.format("Could not select %d %s cards within the copy limit.",
-            RP_CONFIG.CARDS_PER_COLOR, rp_colorName(color))
-    end
-    return chosen
-end
 
 function RP_DeckManager.spawnCard(card, playerColor, index, total)
     local player = Player[playerColor]
@@ -220,32 +182,23 @@ function RP_DeckManager.generateStarterPool(player)
     if record.starter_pool then return false, "Your starter pool has already been generated." end
     local selected = record.selected_colors or {}
     if #selected ~= 2 then return false, "Select exactly two colors before generating your pool." end
-    for _, color in ipairs(selected) do
-        if not RP_catalogs[color] then
-            return false, "The " .. rp_colorName(color) .. " card catalog is still loading. Please try again shortly."
-        end
-    end
 
+    local playerKey = rp_playerKey(player)
+    local colorPools = RP_player_color_pools[playerKey] or {}
     local pool = {}
     for _, color in ipairs(selected) do
-        local chosen, err = RP_DeckManager.chooseCards(color)
-        if not chosen then return false, err end
+        local chosen = colorPools[color]
+        if type(chosen) ~= "table" or #chosen ~= RP_CONFIG.CARDS_PER_COLOR then
+            return false, "The " .. rp_colorName(color) .. " starter pool is still loading. Please try again shortly."
+        end
         for _, source in ipairs(chosen) do
             local card = {
                 instance_id = "rp-" .. tostring(RP_campaign.next_instance_id),
-                oracle_id = source.oracle_id,
-                name = source.name,
-                color = source.color,
-                mana_cost = source.mana_cost,
-                cmc = source.cmc,
-                type_line = source.type_line,
-                oracle_text = source.oracle_text,
-                power = source.power,
-                toughness = source.toughness,
-                image_url = source.image_url,
-                scryfall_uri = source.scryfall_uri,
-                owner_id = record.player_id,
-                upgrades = {},
+                oracle_id = source.oracle_id, name = source.name, color = source.color,
+                mana_cost = source.mana_cost, cmc = source.cmc, type_line = source.type_line,
+                oracle_text = source.oracle_text, power = source.power, toughness = source.toughness,
+                image_url = source.image_url, scryfall_uri = source.scryfall_uri,
+                owner_id = record.player_id, upgrades = {},
             }
             RP_campaign.next_instance_id = RP_campaign.next_instance_id + 1
             table.insert(pool, card)
@@ -255,26 +208,93 @@ function RP_DeckManager.generateStarterPool(player)
     record.starter_pool = {
         generated_at = os.time(),
         colors = { selected[1], selected[2] },
+        pool_variants = {
+            [selected[1]] = record.selected_pool_variants[selected[1]],
+            [selected[2]] = record.selected_pool_variants[selected[2]],
+        },
         cards = pool,
     }
     RP_DeckManager.spawnStarterPool(player, record)
     return true, "Your 20-card starter pool has been generated."
 end
 
+function RP_loadPlayerColorPool(player, color)
+    local record = RP_PlayerManager.getRecord(player)
+    if not record then return end
+    local playerKey = rp_playerKey(player)
+    local requestKey = playerKey .. ":" .. color
+    RP_player_color_pools[playerKey] = RP_player_color_pools[playerKey] or {}
+    if RP_player_color_pools[playerKey][color] or RP_pool_loading[requestKey] then return end
+
+    local variant = record.selected_pool_variants[color]
+    if not variant then
+        variant = math.random(1, RP_CONFIG.STARTER_POOL_VARIANTS)
+        record.selected_pool_variants[color] = variant
+    end
+    local url = RP_CONFIG.STARTER_POOL_BASE_URL .. color .. "_" .. string.format("%03d", variant) .. ".json"
+    RP_pool_loading[requestKey] = true
+    RP_pool_errors[requestKey] = nil
+    print("[Rogue's Passage] Downloading " .. rp_colorName(color) .. " starter pool variant " .. tostring(variant) .. ".")
+
+    local ok, result = pcall(function()
+        return WebRequest.get(url, function(request)
+            RP_pool_loading[requestKey] = nil
+            if request.is_error then
+                RP_pool_errors[requestKey] = request.error or "Starter pool download failed."
+                print("[Rogue's Passage] " .. tostring(RP_pool_errors[requestKey]))
+                RP_refreshUI()
+                return
+            end
+            local decodedOk, decoded = pcall(function() return JSON.decode(request.text or "") end)
+            if not decodedOk or type(decoded) ~= "table" or decoded.color ~= color
+                or decoded.variant ~= variant or type(decoded.cards) ~= "table"
+                or #decoded.cards ~= RP_CONFIG.CARDS_PER_COLOR then
+                RP_pool_errors[requestKey] = "Starter pool file is invalid or has an unsupported schema."
+                print("[Rogue's Passage] " .. RP_pool_errors[requestKey] .. " (" .. color .. ")")
+                RP_refreshUI()
+                return
+            end
+            local currentRecord = RP_PlayerManager.getRecord(player)
+            if not currentRecord or not rp_contains(currentRecord.selected_colors, color)
+                or currentRecord.selected_pool_variants[color] ~= variant then return end
+            RP_player_color_pools[playerKey][color] = decoded.cards
+            RP_pool_errors[requestKey] = nil
+            print(string.format("[Rogue's Passage] Loaded %d %s starter cards.", #decoded.cards, rp_colorName(color)))
+            RP_refreshUI()
+        end)
+    end)
+    if not ok then
+        RP_pool_loading[requestKey] = nil
+        RP_pool_errors[requestKey] = tostring(result)
+        print("[Rogue's Passage] WebRequest.get failed: " .. tostring(result))
+        RP_refreshUI()
+    end
+end
+
 function RP_toggleColor(player, value, id)
-    -- TTS UI Button.value can arrive as -1; the element ID reliably includes
-    -- the color code as its final underscore-delimited segment (rp_<seat>_<code>).
     local colorCode = string.match(tostring(id or ""), "_([WUBRG])$")
     if not colorCode then
         print("[Rogue's Passage] Could not determine clicked color from UI element ID: " .. tostring(id))
         return
     end
-
+    local record = RP_PlayerManager.getRecord(player)
+    local wasSelected = record and rp_contains(record.selected_colors, colorCode)
     local ok, err = RP_PlayerManager.toggleColor(player, colorCode)
     if not ok then
         broadcastToColor(err, player.color, { 1, 0.35, 0.25 })
     else
-        -- Automatic catalog loading is disabled during this diagnostic test.
+        record = RP_PlayerManager.getRecord(player)
+        local playerKey = rp_playerKey(player)
+        RP_player_color_pools[playerKey] = RP_player_color_pools[playerKey] or {}
+        local requestKey = playerKey .. ":" .. colorCode
+        if wasSelected then
+            record.selected_pool_variants[colorCode] = nil
+            RP_player_color_pools[playerKey][colorCode] = nil
+            RP_pool_errors[requestKey] = nil
+        else
+            record.selected_pool_variants[colorCode] = math.random(1, RP_CONFIG.STARTER_POOL_VARIANTS)
+            RP_loadPlayerColorPool(player, colorCode)
+        end
     end
     RP_refreshUI()
 end
@@ -295,6 +315,8 @@ function RP_refreshUI()
     for _, player in ipairs(seated) do
         local record = RP_PlayerManager.register(player)
         local selected = record.selected_colors or {}
+        local playerKey = rp_playerKey(player)
+        local playerPools = RP_player_color_pools[playerKey] or {}
         local buttons = {}
         for _, color in ipairs(RP_COLORS) do
             local isSelected = rp_contains(selected, color.code)
@@ -311,11 +333,11 @@ function RP_refreshUI()
             status = "Starter pool generated: " .. tostring(#(record.starter_pool.cards or {})) .. " cards."
         else
             status = string.format("Choose exactly two colors (%d/2).", #selected)
-            local catalogsReady = (#selected == 2)
+            local poolsReady = (#selected == 2)
             for _, color in ipairs(selected) do
-                if not RP_catalogs[color] then catalogsReady = false end
+                if not playerPools[color] then poolsReady = false end
             end
-            local disabled = catalogsReady and "" or " interactable=\"false\""
+            local disabled = poolsReady and "" or " interactable=\"false\""
             confirmButton = '<Button id="rp_confirm_' .. player.color .. '" text="Generate 20-card starter pool" onClick="RP_generateStarterPool" function_owner="Global" width="250" height="42"' .. disabled .. ' />'
         end
 
@@ -335,110 +357,15 @@ function RP_refreshUI()
             table.concat(buttons, "", 1, 3), table.concat(buttons, "", 4, 5),
             rp_escapeXml(status), confirmButton,
             (#selected == 0 and "select colors" or
-                (RP_catalog_errors[selected[1]] or RP_catalog_errors[selected[2]] or
-                    ((#selected == 2 and RP_catalogs[selected[1]] and RP_catalogs[selected[2]]) and "loaded" or "loading")))))
+                (RP_pool_errors[playerKey .. ":" .. (selected[1] or "")] or
+                    RP_pool_errors[playerKey .. ":" .. (selected[2] or "")] or
+                    ((#selected == 2 and playerPools[selected[1]] and playerPools[selected[2]]) and "ready" or "loading")))))
     end
 
     UI.setXml('<Panel id="rp_root">' .. table.concat(panels, "\n") .. '</Panel>')
 end
 
 -- Process one catalog request at a time to avoid overlapping downloads/parses.
-function RP_processNextCatalog()
-    if RP_catalog_active or #RP_catalog_queue == 0 then return end
-
-    local color = table.remove(RP_catalog_queue, 1)
-    RP_catalog_queued[color] = nil
-    if RP_catalogs[color] then
-        RP_processNextCatalog()
-        return
-    end
-
-    RP_catalog_request_id = RP_catalog_request_id + 1
-    local requestId = RP_catalog_request_id
-    local url = RP_CONFIG.CATALOG_BASE_URL .. color .. ".json"
-    RP_catalog_active = { color = color, id = requestId }
-    RP_catalog_loading[color] = true
-    RP_catalog_errors[color] = nil
-
-    print("[Rogue's Passage] DIAG 1: preparing " .. rp_colorName(color) .. " request.")
-    print("[Rogue's Passage] DIAG 2: URL = " .. url)
-
-    local callback = function(request)
-        print("[Rogue's Passage] DIAG 5: " .. rp_colorName(color) .. " WebRequest callback entered.")
-        if not RP_catalog_active or RP_catalog_active.id ~= requestId then
-            print("[Rogue's Passage] Ignoring late " .. rp_colorName(color) .. " catalog response.")
-            return
-        end
-
-        if request.is_error then
-            RP_catalog_errors[color] = request.error or "Web request failed."
-            print("[Rogue's Passage] " .. rp_colorName(color) .. " catalog download failed: " .. tostring(RP_catalog_errors[color]))
-        else
-            local response = request.text or ""
-            print("[Rogue's Passage] DIAG 6: response received (" .. tostring(#response) .. " characters).")
-            print("[Rogue's Passage] DIAG 7: starting JSON decode.")
-            local ok, decoded = pcall(function() return JSON.decode(response) end)
-            print("[Rogue's Passage] DIAG 8: JSON decode returned (success=" .. tostring(ok) .. ").")
-            if not ok or type(decoded) ~= "table" or type(decoded.cards) ~= "table" or decoded.color ~= color then
-                RP_catalog_errors[color] = "Color catalog JSON is invalid or has an unsupported schema."
-                print("[Rogue's Passage] " .. RP_catalog_errors[color] .. " (" .. color .. ")")
-            else
-                RP_catalogs[color] = decoded
-                print(string.format("[Rogue's Passage] Loaded %d %s cards.", #decoded.cards, rp_colorName(color)))
-            end
-        end
-
-        RP_catalog_loading[color] = nil
-        RP_catalog_active = nil
-        print("[Rogue's Passage] DIAG 9: refreshing UI.")
-        RP_refreshUI()
-        print("[Rogue's Passage] DIAG 10: UI refresh returned.")
-        RP_processNextCatalog()
-    end
-
-    print("[Rogue's Passage] DIAG 3: calling WebRequest.get now.")
-    local ok, result = pcall(function()
-        return WebRequest.get(url, callback)
-    end)
-    print("[Rogue's Passage] DIAG 4: WebRequest.get returned (success=" .. tostring(ok) .. ").")
-    if not ok then
-        RP_catalog_loading[color] = nil
-        RP_catalog_active = nil
-        RP_catalog_errors[color] = tostring(result)
-        print("[Rogue's Passage] WebRequest.get raised an error: " .. tostring(result))
-        RP_refreshUI()
-        RP_processNextCatalog()
-        return
-    end
-
-    -- Diagnostic timeout: if no callback arrives, this should identify a stalled request.
-    Wait.time(function()
-        if RP_catalog_active and RP_catalog_active.id == requestId then
-            RP_catalog_active = nil
-            RP_catalog_loading[color] = nil
-            RP_catalog_errors[color] = "Catalog request timed out after 30 seconds."
-            print("[Rogue's Passage] " .. rp_colorName(color) .. " catalog request timed out without a callback.")
-            RP_refreshUI()
-            RP_processNextCatalog()
-        end
-    end, 30)
-end
-
-function RP_loadColorCatalog(color)
-    if RP_catalogs[color] or RP_catalog_loading[color] or RP_catalog_queued[color] then return end
-    if not RP_CONFIG.CATALOG_BASE_URL or RP_CONFIG.CATALOG_BASE_URL == "" then
-        RP_catalog_errors[color] = "Catalog base URL is not configured."
-        print("[Rogue's Passage] Set RP_CONFIG.CATALOG_BASE_URL in Global.lua.")
-        RP_refreshUI()
-        return
-    end
-
-    RP_catalog_queued[color] = true
-    table.insert(RP_catalog_queue, color)
-    print("[Rogue's Passage] Queued " .. rp_colorName(color) .. " card catalog (queue: " .. tostring(#RP_catalog_queue) .. ").")
-    RP_processNextCatalog()
-end
-
 function onLoad(saved_data)
     if saved_data and saved_data ~= "" then
         local ok, saved = pcall(function() return JSON.decode(saved_data) end)
@@ -452,8 +379,16 @@ function onLoad(saved_data)
     end
 
     math.randomseed(os.time())
+    RP_player_color_pools = {}
+    RP_pool_loading = {}
+    RP_pool_errors = {}
     RP_PlayerManager.registerSeatedPlayers()
-    -- Automatic catalog loading is disabled during this diagnostic test.
+    for _, player in ipairs(Player.getPlayers()) do
+        local record = RP_PlayerManager.getRecord(player)
+        for _, color in ipairs((record and record.selected_colors) or {}) do
+            RP_loadPlayerColorPool(player, color)
+        end
+    end
     RP_refreshUI()
 end
 
@@ -480,232 +415,3 @@ function onPlayerDisconnect(player)
 end
 
 
--- Fourth diagnostic: verify that TTS JSON decoding works on a tiny payload.
--- This performs no network request and does not modify campaign/catalog state.
-function RP_testTinyJsonDecode()
-    local sample = '{"color":"W","cards":[{"oracle_id":"test-001","name":"Test Card","rarity":"common"}]}'
-    print("[RP TEST 4] Starting tiny JSON decode.")
-    local ok, decoded = pcall(function()
-        return JSON.decode(sample)
-    end)
-    print("[RP TEST 4] JSON.decode returned; success=" .. tostring(ok) .. ".")
-    if not ok then
-        print("[RP TEST 4] Decode error: " .. tostring(decoded))
-        return
-    end
-    print("[RP TEST 4] Decoded value type: " .. tostring(type(decoded)))
-    print("[RP TEST 4] Color: " .. tostring(decoded.color))
-    print("[RP TEST 4] Cards type: " .. tostring(type(decoded.cards)))
-    print("[RP TEST 4] Card count: " .. tostring(#decoded.cards))
-    print("[RP TEST 4] Tiny JSON decode complete.")
-end
-
--- Fifth diagnostic: decode a synthetic catalog with representative card fields.
--- Starts with only 25 records to keep the test deliberately small.
-function RP_testSmallCatalogDecode()
-    local cardJson = [[{"oracle_id":"sample-oracle-id","name":"Sample Card","color":"W","mana_cost":"{1}{W}","cmc":2,"type_line":"Creature — Human Soldier","oracle_text":"Vigilance\\nWhen this creature enters the battlefield, draw a card.","power":"2","toughness":"2","image_url":"https://cards.scryfall.io/normal/front/sample.jpg","scryfall_uri":"https://scryfall.com/card/sample"}]]
-    local cards = {}
-    for index = 1, 25 do
-        cards[index] = cardJson
-    end
-    local payloadPrefix = [[{"project_name":"Rogue's Passage","schema_version":1,"generated_by":"RoguesPassageCardCatalog/0.3","color":"W","cards":[
-    ]]
-    local payload = payloadPrefix .. table.concat(cards, ",") .. "]}"
-
-    print("[RP TEST 5] Starting representative catalog decode.")
-    print("[RP TEST 5] Payload size: " .. tostring(#payload) .. " characters; records: 25.")
-    local ok, decoded = pcall(function()
-        return JSON.decode(payload)
-    end)
-    print("[RP TEST 5] JSON.decode returned; success=" .. tostring(ok) .. ".")
-    if not ok then
-        print("[RP TEST 5] Decode error: " .. tostring(decoded))
-        return
-    end
-    print("[RP TEST 5] Decoded cards: " .. tostring(#decoded.cards))
-    print("[RP TEST 5] First card name: " .. tostring(decoded.cards[1].name))
-    print("[RP TEST 5] Representative catalog decode complete.")
-end
-
--- Sixth diagnostic: test a larger representative payload (100 cards).
-function RP_testMediumCatalogDecode()
-    local cardJson = [[{"oracle_id":"sample-oracle-id","name":"Sample Card","color":"W","mana_cost":"{1}{W}","cmc":2,"type_line":"Creature — Human Soldier","oracle_text":"Vigilance\\nWhen this creature enters the battlefield, draw a card.","power":"2","toughness":"2","image_url":"https://cards.scryfall.io/normal/front/sample.jpg","scryfall_uri":"https://scryfall.com/card/sample"}]]
-    local cards = {}
-    for index = 1, 100 do
-        cards[index] = cardJson
-    end
-    local payloadPrefix = [[{"project_name":"Rogue's Passage","schema_version":1,"generated_by":"RoguesPassageCardCatalog/0.3","color":"W","cards":[
-    ]]
-    local payload = payloadPrefix .. table.concat(cards, ",") .. "]}"
-
-    print("[RP TEST 6] Starting medium catalog decode.")
-    print("[RP TEST 6] Payload size: " .. tostring(#payload) .. " characters; records: 100.")
-    local ok, decoded = pcall(function()
-        return JSON.decode(payload)
-    end)
-    print("[RP TEST 6] JSON.decode returned; success=" .. tostring(ok) .. ".")
-    if not ok then
-        print("[RP TEST 6] Decode error: " .. tostring(decoded))
-        return
-    end
-    print("[RP TEST 6] Decoded cards: " .. tostring(#decoded.cards))
-    print("[RP TEST 6] First card name: " .. tostring(decoded.cards[1].name))
-    print("[RP TEST 6] Medium catalog decode complete.")
-end
-
--- Seventh diagnostic: test a larger representative payload (250 cards).
-function RP_testLargeCatalogDecode()
-    local cardJson = [[{"oracle_id":"sample-oracle-id","name":"Sample Card","color":"W","mana_cost":"{1}{W}","cmc":2,"type_line":"Creature — Human Soldier","oracle_text":"Vigilance\\nWhen this creature enters the battlefield, draw a card.","power":"2","toughness":"2","image_url":"https://cards.scryfall.io/normal/front/sample.jpg","scryfall_uri":"https://scryfall.com/card/sample"}]]
-    local cards = {}
-    for index = 1, 250 do
-        cards[index] = cardJson
-    end
-    local payloadPrefix = [[{"project_name":"Rogue's Passage","schema_version":1,"generated_by":"RoguesPassageCardCatalog/0.3","color":"W","cards":[
-    ]]
-    local payload = payloadPrefix .. table.concat(cards, ",") .. "]}"
-
-    print("[RP TEST 7] Starting large catalog decode.")
-    print("[RP TEST 7] Payload size: " .. tostring(#payload) .. " characters; records: 250.")
-    local ok, decoded = pcall(function()
-        return JSON.decode(payload)
-    end)
-    print("[RP TEST 7] JSON.decode returned; success=" .. tostring(ok) .. ".")
-    if not ok then
-        print("[RP TEST 7] Decode error: " .. tostring(decoded))
-        return
-    end
-    print("[RP TEST 7] Decoded cards: " .. tostring(#decoded.cards))
-    print("[RP TEST 7] First card name: " .. tostring(decoded.cards[1].name))
-    print("[RP TEST 7] Large catalog decode complete.")
-end
-
-function RP_testXLargeCatalogDecode()
-    local cardJson = [[{"oracle_id":"sample-oracle-id","name":"Sample Card","color":"W","mana_cost":"{1}{W}","cmc":2,"type_line":"Creature — Human Soldier","oracle_text":"Vigilance\\nWhen this creature enters the battlefield, draw a card.","power":"2","toughness":"2","image_url":"https://cards.scryfall.io/normal/front/sample.jpg","scryfall_uri":"https://scryfall.com/card/sample"}]]
-    local cards = {}
-    for index = 1, 500 do
-        cards[index] = cardJson
-    end
-    local payloadPrefix = [[{"project_name":"Rogue's Passage","schema_version":1,"generated_by":"RoguesPassageCardCatalog/0.3","color":"W","cards":[
-    ]]
-    local payload = payloadPrefix .. table.concat(cards, ",") .. "]}"
-
-    print("[RP TEST 8] Starting extra-large catalog decode.")
-    print("[RP TEST 8] Payload size: " .. tostring(#payload) .. " characters; records: 500.")
-    local ok, decoded = pcall(function()
-        return JSON.decode(payload)
-    end)
-    print("[RP TEST 8] JSON.decode returned; success=" .. tostring(ok) .. ".")
-    if not ok then
-        print("[RP TEST 8] Decode error: " .. tostring(decoded))
-        return
-    end
-    print("[RP TEST 8] Decoded cards: " .. tostring(#decoded.cards))
-    print("[RP TEST 8] First card name: " .. tostring(decoded.cards[1].name))
-    print("[RP TEST 8] Extra-large catalog decode complete.")
-end
-
--- Ninth diagnostic: decode many small card records individually rather than
--- decoding one large JSON array. This models a line-delimited catalog.
-function RP_testIndividualCardDecode()
-    local cardJson = [[{"oracle_id":"sample-oracle-id","name":"Sample Card","color":"W","mana_cost":"{1}{W}","cmc":2,"type_line":"Creature — Human Soldier","oracle_text":"Vigilance\\nWhen this creature enters the battlefield, draw a card.","power":"2","toughness":"2","image_url":"https://cards.scryfall.io/normal/front/sample.jpg","scryfall_uri":"https://scryfall.com/card/sample"}]]
-    local decodedCount = 0
-
-    print("[RP TEST 9] Starting individual card decode test (100 records).")
-    for index = 1, 100 do
-        local ok, decoded = pcall(function()
-            return JSON.decode(cardJson)
-        end)
-        if not ok or type(decoded) ~= "table" then
-            print("[RP TEST 9] Failed on record " .. tostring(index) .. ": " .. tostring(decoded))
-            return
-        end
-        decodedCount = decodedCount + 1
-    end
-    print("[RP TEST 9] Individually decoded records: " .. tostring(decodedCount))
-    print("[RP TEST 9] Individual card decode test complete.")
-end
-
--- Third diagnostic: test TTS JSON decoding independently of the catalog loader.
-function RP_testCatalogDecode()
-    local url = RP_CONFIG.CATALOG_BASE_URL .. "W.json"
-    print("[RP TEST 3] Starting catalog download for JSON decode test.")
-
-    WebRequest.get(url, function(request)
-        print("[RP TEST 3] Download callback entered.")
-        if request.is_error then
-            print("[RP TEST 3] Download failed: " .. tostring(request.error))
-            return
-        end
-
-        local response = request.text or ""
-        print("[RP TEST 3] Response received: " .. tostring(#response) .. " characters.")
-        print("[RP TEST 3] Starting JSON.decode.")
-        local ok, decoded = pcall(function()
-            return JSON.decode(response)
-        end)
-        print("[RP TEST 3] JSON.decode returned; success=" .. tostring(ok) .. ".")
-        if not ok then
-            print("[RP TEST 3] Decode error: " .. tostring(decoded))
-            return
-        end
-
-        print("[RP TEST 3] Decoded value type: " .. tostring(type(decoded)))
-        print("[RP TEST 3] Cards field type: " .. tostring(type(decoded.cards)))
-        print("[RP TEST 3] Color field: " .. tostring(decoded.color))
-        if type(decoded.cards) == "table" then
-            print("[RP TEST 3] Card count: " .. tostring(#decoded.cards))
-        end
-        print("[RP TEST 3] Decode test complete.")
-    end)
-
-    print("[RP TEST 3] WebRequest.get returned.")
-end
-
--- Second diagnostic: reproduce the loader's local callback and pcall wrapper,
--- but deliberately omit queue state, JSON parsing, UI refresh, and timeout logic.
-function RP_testCatalogLoaderCallback()
-    local color = "W"
-    local requestId = 999
-    local url = RP_CONFIG.CATALOG_BASE_URL .. color .. ".json"
-
-    print("[RP TEST 2] Preparing local callback for " .. rp_colorName(color) .. ".")
-    local callback = function(request)
-        print("[RP TEST 2] LOCAL CALLBACK ENTERED for " .. rp_colorName(color) .. " (id=" .. tostring(requestId) .. ").")
-        print("[RP TEST 2] Is error: " .. tostring(request.is_error))
-        local response = request.text or ""
-        print("[RP TEST 2] Response length: " .. tostring(#response) .. " characters.")
-        print("[RP TEST 2] Callback complete.")
-    end
-
-    print("[RP TEST 2] Calling WebRequest.get through pcall.")
-    local ok, result = pcall(function()
-        return WebRequest.get(url, callback)
-    end)
-    print("[RP TEST 2] WebRequest.get returned (success=" .. tostring(ok) .. ").")
-    if not ok then
-        print("[RP TEST 2] Request call error: " .. tostring(result))
-    end
-end
-
--- TEMPORARY DIAGNOSTIC:
--- Run RP_testCatalogRequest() from the TTS scripting console after loading.
--- This uses the known-good standalone request while the full mod is loaded.
-function RP_testCatalogRequest()
-    local url = RP_CONFIG.CATALOG_BASE_URL .. "W.json"
-    print("[Rogue's Passage TEST] Starting standalone request from full mod.")
-    print("[Rogue's Passage TEST] URL: " .. url)
-
-    WebRequest.get(url, function(request)
-        print("[Rogue's Passage TEST] CALLBACK RECEIVED.")
-        print("[Rogue's Passage TEST] Is error: " .. tostring(request.is_error))
-        print("[Rogue's Passage TEST] Error message: " .. tostring(request.error))
-        local response = request.text or ""
-        print("[Rogue's Passage TEST] Response length: " .. tostring(#response) .. " characters.")
-        if #response > 0 then
-            print("[Rogue's Passage TEST] First 100 characters: " .. string.sub(response, 1, 100))
-        end
-        print("[Rogue's Passage TEST] Test complete.")
-    end)
-
-    print("[Rogue's Passage TEST] WebRequest.get returned.")
-end
