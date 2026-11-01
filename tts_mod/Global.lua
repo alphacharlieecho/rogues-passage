@@ -240,6 +240,12 @@ function RP_loadPlayerColorPool(player, color)
         return WebRequest.get(url, function(request)
             RP_pool_loading[requestKey] = nil
             if request.is_error then
+                local currentRecord = RP_PlayerManager.getRecord(player)
+                if currentRecord and rp_contains(currentRecord.selected_colors, color)
+                    and currentRecord.selected_pool_variants[color] ~= variant then
+                    RP_loadPlayerColorPool(player, color)
+                    return
+                end
                 RP_pool_errors[requestKey] = request.error or "Starter pool download failed."
                 print("[Rogue's Passage] " .. tostring(RP_pool_errors[requestKey]))
                 RP_refreshUI()
@@ -353,7 +359,7 @@ function RP_refreshUI()
                     <HorizontalLayout spacing="5">%s</HorizontalLayout>
                     <Text text="%s" fontSize="13" color="#FFFFFF" alignment="MiddleCenter" />
                     %s
-                    <Text text="Catalog: %s" fontSize="10" color="#AAB2C0" alignment="MiddleCenter" />
+                    <Text text="Starter pools: %s" fontSize="10" color="#AAB2C0" alignment="MiddleCenter" />
                 </VerticalLayout>
             </Panel>
         ]], player.color, player.color, rp_escapeXml(record.name), player.color,
