@@ -480,6 +480,32 @@ function onPlayerDisconnect(player)
 end
 
 
+-- Second diagnostic: reproduce the loader's local callback and pcall wrapper,
+-- but deliberately omit queue state, JSON parsing, UI refresh, and timeout logic.
+function RP_testCatalogLoaderCallback()
+    local color = "W"
+    local requestId = 999
+    local url = RP_CONFIG.CATALOG_BASE_URL .. color .. ".json"
+
+    print("[RP TEST 2] Preparing local callback for " .. rp_colorName(color) .. ".")
+    local callback = function(request)
+        print("[RP TEST 2] LOCAL CALLBACK ENTERED for " .. rp_colorName(color) .. " (id=" .. tostring(requestId) .. ").")
+        print("[RP TEST 2] Is error: " .. tostring(request.is_error))
+        local response = request.text or ""
+        print("[RP TEST 2] Response length: " .. tostring(#response) .. " characters.")
+        print("[RP TEST 2] Callback complete.")
+    end
+
+    print("[RP TEST 2] Calling WebRequest.get through pcall.")
+    local ok, result = pcall(function()
+        return WebRequest.get(url, callback)
+    end)
+    print("[RP TEST 2] WebRequest.get returned (success=" .. tostring(ok) .. ").")
+    if not ok then
+        print("[RP TEST 2] Request call error: " .. tostring(result))
+    end
+end
+
 -- TEMPORARY DIAGNOSTIC:
 -- Run RP_testCatalogRequest() from the TTS scripting console after loading.
 -- This uses the known-good standalone request while the full mod is loaded.
