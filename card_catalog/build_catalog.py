@@ -419,6 +419,56 @@ def build_tts_color_catalogs(catalog: list[dict[str, Any]]) -> dict[str, dict[st
         for color in COLOR_NAMES
     }
 
+def build_tts_starter_pools(
+    catalog: list[dict[str, Any]],
+    config: dict[str, Any],
+    variants_per_color: int = 100,
+) -> dict[str, list[dict[str, Any]]]:
+    """Pre-generate small, independently downloadable one-color starter pools."""
+    if variants_per_color < 1:
+        raise ValueError("variants_per_color must be at least 1.")
+
+    cards_per_color = int(config.get("starter_cards_per_color", 10))
+    max_copies = int(config.get("max_copies_per_card_in_pool", 4))
+    seed = config.get("random_seed")
+    rng = random.Random(seed)
+
+    pools: dict[str, list[dict[str, Any]]] = {}
+    for color in COLOR_NAMES:
+        # Only export records that have the image and fields TTS needs.
+        eligible = build_tts_catalog([card for card in catalog if card.get("color") == color])["cards"]
+        if len(eligible) < cards_per_color:
+            raise ValueError(
+                f"Cannot build TTS starter pools for {color}: "
+                f"only {len(eligible)} cards with images; {cards_per_color} required."
+            )
+
+        color_pools = []
+        for variant in range(1, variants_per_color + 1):
+            chosen: list[dict[str, Any]] = []
+            copies: Counter[str] = Counter()
+            while len(chosen) < cards_per_color:
+                available = [
+                    card for card in eligible
+                    if copies[card["oracle_id"]] < max_copies
+                ]
+                if not available:
+                    raise ValueError(
+                        f"Cannot fill {cards_per_color} cards for {color} "
+                        f"within the {max_copies}-copy limit."
+                    )
+                card = rng.choice(available)
+                copies[card["oracle_id"]] += 1
+                chosen.append(card)
+            color_pools.append({
+                "color": color,
+                "variant": variant,
+                "cards": chosen,
+            })
+        pools[color] = color_pools
+    return pools
+
+
 def validate_all_color_pairs(catalog: list[dict[str, Any]], config: dict[str, Any]) -> list[dict[str, Any]]:
     seed = config.get("random_seed")
     results = []
@@ -488,7 +538,7 @@ def main() -> int:
 
         args.catalog_out.parent.mkdir(parents=True, exist_ok=True)
         args.report_out.parent.mkdir(parents=True, exist_ok=True)
-        args.tts_catalog_dir.mkdir(parents=True, exist_ok=True)
+        args.tts_catalog_dir.mkdir(parents=True, exist_ok=True)\n        args.tts_pool_dir.mkdir(parents=True, exist_ok=True)
         args.catalog_out.write_text(json.dumps({
             "project_name": config.get("project_name", "Rogue's Passage"),
             "schema_version": 1,
@@ -506,8 +556,20 @@ def main() -> int:
             )
             tts_export_count += len(color_catalog["cards"])
             logging.info("TTS %s catalog written: %s (%d cards)", color, output_path, len(color_catalog["cards"]))
+        starter_pools = build_tts_starter_pools(catalog, config, args.tts_pool_variants)
+        starter_pool_files = 0
+        for color, variants in starter_pools.items():
+            for pool in variants:
+                output_path = args.tts_pool_dir / f"starter_pool_{color}_{pool['variant']:03d}.json"
+                output_path.write_text(
+                    json.dumps(pool, separators=(",", ":"), ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                starter_pool_files += 1
+            logging.info("TTS %s starter pools written: %d variants", color, len(variants))
+
         report["tts_export_cards"] = tts_export_count
-        report["tts_catalog_files"] = len(tts_catalogs)
+        report["tts_catalog_files"] = len(tts_catalogs)\n        report["tts_starter_pool_files"] = starter_pool_files\n        report["tts_starter_pool_variants_per_color"] = args.tts_pool_variants
         args.report_out.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
         logging.info("Catalog written: %s (%d unique cards)", args.catalog_out, len(catalog))
