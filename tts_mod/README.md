@@ -68,4 +68,4 @@ At the top of `Global.lua`:
 - `STARTER_POOL_BASE_URL`: HTTPS URL prefix ending in `starter_pool_`; the script appends a color code, variant number, and `.json`
 - `STARTER_POOL_VARIANTS`: number of generated variants available per color (default 100)
 - `CARDS_PER_COLOR`: defaults to 10
-- `CARD_BACK_URL`: optional custom card-back image URL
+- `CARD_BACK_URL`: shared card-back image URL; defaults to Scryfall’s standard Magic card back. Set to `nil` to use TTS’s default back.
