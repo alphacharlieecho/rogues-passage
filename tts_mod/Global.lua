@@ -387,6 +387,13 @@ function onLoad(saved_data)
 
     math.randomseed(os.time())
     RP_PlayerManager.registerSeatedPlayers()
+    -- Restore downloads for colors players had already selected before the save/reload.
+    for _, player in ipairs(Player.getPlayers()) do
+        local record = RP_PlayerManager.getRecord(player)
+        for _, color in ipairs((record and record.selected_colors) or {}) do
+            RP_loadColorCatalog(color)
+        end
+    end
     RP_refreshUI()
 end
 
