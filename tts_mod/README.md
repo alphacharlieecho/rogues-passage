@@ -4,14 +4,14 @@ This folder contains the first playable TTS scripting foundation:
 
 - Seated-player registration
 - Per-player two-color selection (exactly two of W/U/B/R/G)
-- On-demand download of only the selected colors' card catalogs
+- On-demand download of only the selected 10-card color pools
 - Random selection of 10 cards per selected color
 - Spawning 20 face-up custom cards in front of the player
 - Campaign metadata persistence through TTS `onSave` / `onLoad`
 
 The campaign record stores card instances and progression metadata independently of physical TTS objects. Object GUIDs are recorded only as convenience pointers; they are not used as the source of truth.
 
-## 1. Generate the TTS catalogs
+## 1. Generate the TTS starter pools
 
 From the repository root, run:
 
@@ -19,25 +19,27 @@ From the repository root, run:
 python3 card_catalog/build_catalog.py
 ```
 
-This generates the full catalog, validation report, and five color-specific TTS files in `card_catalog/tts_catalogs/`:
+The builder generates the full catalog and validation report, retains the five color catalog exports for reference, and creates 100 small randomized starter-pool variants per color in `card_catalog/tts_starter_pools/`.
 
-- `tts_catalog_W.json`
-- `tts_catalog_U.json`
-- `tts_catalog_B.json`
-- `tts_catalog_R.json`
-- `tts_catalog_G.json`
+Each `starter_pool_<COLOR>_<VARIANT>.json` file contains exactly 10 eligible cards of one color. The builder enforces the configured per-Oracle-ID copy limit. The default output is 500 small files (100 variants for each of W/U/B/R/G).
 
-Each TTS file contains only one color's eligible cards and the fields needed to create starter cards. The game downloads the two files corresponding to a player's selected colors, rather than downloading and parsing the entire catalog at startup.
+To generate a different number of variants:
 
-## 2. Host the catalogs
-
-Host all five files at HTTPS URLs accessible to the TTS game client. With this repository on GitHub, the URL pattern is:
-
-```text
-https://raw.githubusercontent.com/alphacharlieecho/rogues-passage/main/card_catalog/tts_catalogs/tts_catalog_W.json
+```bash
+python3 card_catalog/build_catalog.py --tts-pool-variants 200
 ```
 
-Replace the final `W` with `U`, `B`, `R`, or `G` for the other colors. The repository's `main` branch URL is configured by default in `Global.lua`.
+Commit and push the generated `card_catalog/tts_starter_pools/` directory so the TTS client can download the files from GitHub.
+
+## 2. Host the starter pools
+
+The default URL pattern is:
+
+```text
+https://raw.githubusercontent.com/alphacharlieecho/rogues-passage/main/card_catalog/tts_starter_pools/starter_pool_W_001.json
+```
+
+The script chooses a random variant from 001 through 100 for each selected player/color combination. Only the two selected 10-card files are downloaded. TTS decodes 10 cards per file instead of parsing a multi-thousand-card color catalog.
 
 ## 3. Install the Global script
 
@@ -63,7 +65,7 @@ When a player selects a color, its catalog downloads. Once both selected catalog
 
 At the top of `Global.lua`:
 
-- `CATALOG_BASE_URL`: required HTTPS URL prefix ending in `tts_catalog_`; the script appends a color code and `.json`
+- `STARTER_POOL_BASE_URL`: HTTPS URL prefix ending in `starter_pool_`; the script appends a color code, variant number, and `.json`
+- `STARTER_POOL_VARIANTS`: number of generated variants available per color (default 100)
 - `CARDS_PER_COLOR`: defaults to 10
-- `MAX_COPIES_PER_ORACLE_ID`: defaults to 4
 - `CARD_BACK_URL`: optional custom card-back image URL
