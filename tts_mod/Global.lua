@@ -143,7 +143,9 @@ function RP_DeckManager.spawnCard(card, playerColor, index, total)
         return
     end
 
-    local yaw = (hand.rotation and hand.rotation.y) or 0
+    -- TTS card/deck artwork is currently oriented 180 degrees from the player's view.
+    -- Rotate the deck around its vertical axis so both face and back read upright.
+    local yaw = ((hand.rotation and hand.rotation.y) or 0) + 180
     local radians = math.rad(yaw)
     local cosYaw = math.cos(radians)
     local sinYaw = math.sin(radians)
