@@ -496,6 +496,10 @@ def main() -> int:
     parser.add_argument("--report-out", type=Path, default=DEFAULT_REPORT)
     parser.add_argument("--tts-catalog-dir", type=Path, default=Path(__file__).with_name("tts_catalogs"),
                         help="Output directory for five color-specific TTS catalogs.")
+    parser.add_argument("--tts-pool-dir", type=Path, default=Path(__file__).with_name("tts_starter_pools"),
+                        help="Output directory for small pre-generated TTS starter-pool files.")
+    parser.add_argument("--tts-pool-variants", type=int, default=100,
+                        help="Number of randomized one-color starter-pool variants to generate per color.")
     parser.add_argument("--input", type=Path, help="Optional local Scryfall JSON/JSONL bulk file for offline builds.")
     parser.add_argument("--no-download", action="store_true", help="Use cached bulk data only.")
     args = parser.parse_args()
