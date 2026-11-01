@@ -480,6 +480,26 @@ function onPlayerDisconnect(player)
 end
 
 
+-- Fourth diagnostic: verify that TTS JSON decoding works on a tiny payload.
+-- This performs no network request and does not modify campaign/catalog state.
+function RP_testTinyJsonDecode()
+    local sample = '{"color":"W","cards":[{"oracle_id":"test-001","name":"Test Card","rarity":"common"}]}'
+    print("[RP TEST 4] Starting tiny JSON decode.")
+    local ok, decoded = pcall(function()
+        return JSON.decode(sample)
+    end)
+    print("[RP TEST 4] JSON.decode returned; success=" .. tostring(ok) .. ".")
+    if not ok then
+        print("[RP TEST 4] Decode error: " .. tostring(decoded))
+        return
+    end
+    print("[RP TEST 4] Decoded value type: " .. tostring(type(decoded)))
+    print("[RP TEST 4] Color: " .. tostring(decoded.color))
+    print("[RP TEST 4] Cards type: " .. tostring(type(decoded.cards)))
+    print("[RP TEST 4] Card count: " .. tostring(#decoded.cards))
+    print("[RP TEST 4] Tiny JSON decode complete.")
+end
+
 -- Third diagnostic: test TTS JSON decoding independently of the catalog loader.
 function RP_testCatalogDecode()
     local url = RP_CONFIG.CATALOG_BASE_URL .. "W.json"
