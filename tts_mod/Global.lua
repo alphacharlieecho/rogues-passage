@@ -8,6 +8,8 @@ RP_CONFIG = {
     STARTER_POOL_BASE_URL = "https://raw.githubusercontent.com/alphacharlieecho/rogues-passage/main/card_catalog/tts_starter_pools/starter_pool_",
     CARDS_PER_COLOR = 10,
     STARTER_POOL_VARIANTS = 100,
+    -- TEMPORARY image-host test: force known pools containing Aven Sunstriker and Psychic Overload.
+    TEST_POOL_VARIANTS = { W = 88, U = 51 },
     CARD_BACK_URL = "https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg", -- Standard Magic card back.
 }
 
@@ -386,11 +388,12 @@ function RP_loadPlayerColorPool(player, color)
     RP_player_color_pools[playerKey] = RP_player_color_pools[playerKey] or {}
     if RP_player_color_pools[playerKey][color] or RP_pool_loading[requestKey] then return end
 
-    local variant = record.selected_pool_variants[color]
+    local variant = (RP_CONFIG.TEST_POOL_VARIANTS and RP_CONFIG.TEST_POOL_VARIANTS[color])
+        or record.selected_pool_variants[color]
     if not variant then
         variant = math.random(1, RP_CONFIG.STARTER_POOL_VARIANTS)
-        record.selected_pool_variants[color] = variant
     end
+    record.selected_pool_variants[color] = variant
     local url = RP_CONFIG.STARTER_POOL_BASE_URL .. color .. "_" .. string.format("%03d", variant) .. ".json"
     RP_pool_loading[requestKey] = true
     RP_pool_errors[requestKey] = nil
