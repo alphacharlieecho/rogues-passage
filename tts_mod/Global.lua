@@ -258,7 +258,15 @@ function RP_DeckManager.generateStarterPool(player)
 end
 
 function RP_toggleColor(player, value, id)
-    local ok, err = RP_PlayerManager.toggleColor(player, value)
+    -- TTS UI Button.value can arrive as -1; the element ID reliably includes
+    -- the color code as its final underscore-delimited segment (rp_<seat>_<code>).
+    local colorCode = string.match(tostring(id or ""), "_([WUBRG])$")
+    if not colorCode then
+        print("[Rogue's Passage] Could not determine clicked color from UI element ID: " .. tostring(id))
+        return
+    end
+
+    local ok, err = RP_PlayerManager.toggleColor(player, colorCode)
     if not ok then
         broadcastToColor(err, player.color, { 1, 0.35, 0.25 })
     else
