@@ -500,6 +500,31 @@ function RP_testTinyJsonDecode()
     print("[RP TEST 4] Tiny JSON decode complete.")
 end
 
+-- Fifth diagnostic: decode a synthetic catalog with representative card fields.
+-- Starts with only 25 records to keep the test deliberately small.
+function RP_testSmallCatalogDecode()
+    local cardJson = '{"oracle_id":"sample-oracle-id","name":"Sample Card","color":"W","mana_cost":"{1}{W}","cmc":2,"type_line":"Creature — Human Soldier","oracle_text":"Vigilance\nWhen this creature enters the battlefield, draw a card.","power":"2","toughness":"2","image_url":"https://cards.scryfall.io/normal/front/sample.jpg","scryfall_uri":"https://scryfall.com/card/sample"}'
+    local cards = {}
+    for index = 1, 25 do
+        cards[index] = cardJson
+    end
+    local payload = '{"project_name":"Rogue''s Passage","schema_version":1,"generated_by":"RoguesPassageCardCatalog/0.3","color":"W","cards":[' .. table.concat(cards, ",") .. ']}'
+
+    print("[RP TEST 5] Starting representative catalog decode.")
+    print("[RP TEST 5] Payload size: " .. tostring(#payload) .. " characters; records: 25.")
+    local ok, decoded = pcall(function()
+        return JSON.decode(payload)
+    end)
+    print("[RP TEST 5] JSON.decode returned; success=" .. tostring(ok) .. ".")
+    if not ok then
+        print("[RP TEST 5] Decode error: " .. tostring(decoded))
+        return
+    end
+    print("[RP TEST 5] Decoded cards: " .. tostring(#decoded.cards))
+    print("[RP TEST 5] First card name: " .. tostring(decoded.cards[1].name))
+    print("[RP TEST 5] Representative catalog decode complete.")
+end
+
 -- Third diagnostic: test TTS JSON decoding independently of the catalog loader.
 function RP_testCatalogDecode()
     local url = RP_CONFIG.CATALOG_BASE_URL .. "W.json"
