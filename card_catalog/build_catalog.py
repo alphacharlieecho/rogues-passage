@@ -404,10 +404,20 @@ def build_tts_catalog(catalog: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "project_name": "Rogue's Passage",
         "schema_version": 1,
-        "generated_by": "RoguesPassageCardCatalog/0.2",
+        "generated_by": "RoguesPassageCardCatalog/0.3",
         "cards": cards,
     }
 
+
+def build_tts_color_catalogs(catalog: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Split the compact TTS catalog into independently downloadable color files."""
+    return {
+        color: {
+            **build_tts_catalog([card for card in catalog if card.get("color") == color]),
+            "color": color,
+        }
+        for color in COLOR_NAMES
+    }
 
 def validate_all_color_pairs(catalog: list[dict[str, Any]], config: dict[str, Any]) -> list[dict[str, Any]]:
     seed = config.get("random_seed")
@@ -434,8 +444,8 @@ def main() -> int:
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--catalog-out", type=Path, default=DEFAULT_CATALOG)
     parser.add_argument("--report-out", type=Path, default=DEFAULT_REPORT)
-    parser.add_argument("--tts-catalog-out", type=Path, default=DEFAULT_TTS_CATALOG,
-                        help="Compact card/image catalog for Tabletop Simulator WebRequest loading.")
+    parser.add_argument("--tts-catalog-dir", type=Path, default=Path(__file__).with_name("tts_catalogs"),
+                        help="Output directory for five color-specific TTS catalogs.")
     parser.add_argument("--input", type=Path, help="Optional local Scryfall JSON/JSONL bulk file for offline builds.")
     parser.add_argument("--no-download", action="store_true", help="Use cached bulk data only.")
     args = parser.parse_args()
@@ -478,7 +488,7 @@ def main() -> int:
 
         args.catalog_out.parent.mkdir(parents=True, exist_ok=True)
         args.report_out.parent.mkdir(parents=True, exist_ok=True)
-        args.tts_catalog_out.parent.mkdir(parents=True, exist_ok=True)
+        args.tts_catalog_dir.mkdir(parents=True, exist_ok=True)
         args.catalog_out.write_text(json.dumps({
             "project_name": config.get("project_name", "Rogue's Passage"),
             "schema_version": 1,
@@ -486,14 +496,22 @@ def main() -> int:
             "cards": catalog,
         }, indent=2, ensure_ascii=False), encoding="utf-8")
         args.report_out.write_text(json.dumps(report, indent=2), encoding="utf-8")
-        tts_catalog = build_tts_catalog(catalog)
-        args.tts_catalog_out.write_text(json.dumps(tts_catalog, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
-        report["tts_export_cards"] = len(tts_catalog["cards"])
+        tts_catalogs = build_tts_color_catalogs(catalog)
+        tts_export_count = 0
+        for color, color_catalog in tts_catalogs.items():
+            output_path = args.tts_catalog_dir / f"tts_catalog_{color}.json"
+            output_path.write_text(
+                json.dumps(color_catalog, separators=(",", ":"), ensure_ascii=False),
+                encoding="utf-8",
+            )
+            tts_export_count += len(color_catalog["cards"])
+            logging.info("TTS %s catalog written: %s (%d cards)", color, output_path, len(color_catalog["cards"]))
+        report["tts_export_cards"] = tts_export_count
+        report["tts_catalog_files"] = len(tts_catalogs)
         args.report_out.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
         logging.info("Catalog written: %s (%d unique cards)", args.catalog_out, len(catalog))
         logging.info("Report written: %s", args.report_out)
-        logging.info("TTS catalog written: %s (%d cards)", args.tts_catalog_out, len(tts_catalog["cards"]))
         failures = [r for r in report["color_pair_validation"] if r["status"] != "ok"]
         if failures:
             logging.warning("%d of 10 color pairs could not produce a valid pool.", len(failures))
