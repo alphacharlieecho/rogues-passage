@@ -527,6 +527,32 @@ function RP_testSmallCatalogDecode()
     print("[RP TEST 5] Representative catalog decode complete.")
 end
 
+-- Sixth diagnostic: test a larger representative payload (100 cards).
+function RP_testMediumCatalogDecode()
+    local cardJson = [[{"oracle_id":"sample-oracle-id","name":"Sample Card","color":"W","mana_cost":"{1}{W}","cmc":2,"type_line":"Creature — Human Soldier","oracle_text":"Vigilance\\nWhen this creature enters the battlefield, draw a card.","power":"2","toughness":"2","image_url":"https://cards.scryfall.io/normal/front/sample.jpg","scryfall_uri":"https://scryfall.com/card/sample"}]]
+    local cards = {}
+    for index = 1, 100 do
+        cards[index] = cardJson
+    end
+    local payloadPrefix = [[{"project_name":"Rogue's Passage","schema_version":1,"generated_by":"RoguesPassageCardCatalog/0.3","color":"W","cards":[
+    ]]
+    local payload = payloadPrefix .. table.concat(cards, ",") .. "]}"
+
+    print("[RP TEST 6] Starting medium catalog decode.")
+    print("[RP TEST 6] Payload size: " .. tostring(#payload) .. " characters; records: 100.")
+    local ok, decoded = pcall(function()
+        return JSON.decode(payload)
+    end)
+    print("[RP TEST 6] JSON.decode returned; success=" .. tostring(ok) .. ".")
+    if not ok then
+        print("[RP TEST 6] Decode error: " .. tostring(decoded))
+        return
+    end
+    print("[RP TEST 6] Decoded cards: " .. tostring(#decoded.cards))
+    print("[RP TEST 6] First card name: " .. tostring(decoded.cards[1].name))
+    print("[RP TEST 6] Medium catalog decode complete.")
+end
+
 -- Third diagnostic: test TTS JSON decoding independently of the catalog loader.
 function RP_testCatalogDecode()
     local url = RP_CONFIG.CATALOG_BASE_URL .. "W.json"
