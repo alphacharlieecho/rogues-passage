@@ -604,6 +604,27 @@ function RP_testXLargeCatalogDecode()
     print("[RP TEST 8] Extra-large catalog decode complete.")
 end
 
+-- Ninth diagnostic: decode many small card records individually rather than
+-- decoding one large JSON array. This models a line-delimited catalog.
+function RP_testIndividualCardDecode()
+    local cardJson = [[{"oracle_id":"sample-oracle-id","name":"Sample Card","color":"W","mana_cost":"{1}{W}","cmc":2,"type_line":"Creature — Human Soldier","oracle_text":"Vigilance\\nWhen this creature enters the battlefield, draw a card.","power":"2","toughness":"2","image_url":"https://cards.scryfall.io/normal/front/sample.jpg","scryfall_uri":"https://scryfall.com/card/sample"}]]
+    local decodedCount = 0
+
+    print("[RP TEST 9] Starting individual card decode test (100 records).")
+    for index = 1, 100 do
+        local ok, decoded = pcall(function()
+            return JSON.decode(cardJson)
+        end)
+        if not ok or type(decoded) ~= "table" then
+            print("[RP TEST 9] Failed on record " .. tostring(index) .. ": " .. tostring(decoded))
+            return
+        end
+        decodedCount = decodedCount + 1
+    end
+    print("[RP TEST 9] Individually decoded records: " .. tostring(decodedCount))
+    print("[RP TEST 9] Individual card decode test complete.")
+end
+
 -- Third diagnostic: test TTS JSON decoding independently of the catalog loader.
 function RP_testCatalogDecode()
     local url = RP_CONFIG.CATALOG_BASE_URL .. "W.json"
