@@ -135,14 +135,35 @@ function RP_DeckManager.spawnCard(card, playerColor, index, total)
     end
 
     local hand = player.getHandTransform()
+    if not hand or not hand.position then
+        print("[Rogue's Passage] Cannot spawn cards: hand transform is unavailable for " .. tostring(playerColor))
+        return
+    end
+
     local yaw = (hand.rotation and hand.rotation.y) or 0
-    local rotation = { 0, yaw, 0 }
-    local base = hand.position + Vector(0, 0, 8):rotate(rotation)
+    local radians = math.rad(yaw)
+    local cosYaw = math.cos(radians)
+    local sinYaw = math.sin(radians)
+
+    -- Rotate local table offsets using numeric coordinates. This avoids relying
+    -- on Vector:rotate(), which is not available in every TTS Lua environment.
+    local baseLocalX, baseLocalZ = 0, 8
+    local baseX = baseLocalX * cosYaw + baseLocalZ * sinYaw
+    local baseZ = -baseLocalX * sinYaw + baseLocalZ * cosYaw
+
     local column = (index - 1) % 5
     local row = math.floor((index - 1) / 5)
-    local offset = Vector((column - 2) * 2.65, 0, (row - 1.5) * 3.65):rotate(rotation)
-    local rawPosition = base + offset
-    local position = Vector(rawPosition.x, 1.5, rawPosition.z)
+    local localX = (column - 2) * 2.65
+    local localZ = (row - 1.5) * 3.65
+    local offsetX = localX * cosYaw + localZ * sinYaw
+    local offsetZ = -localX * sinYaw + localZ * cosYaw
+
+    local position = {
+        x = hand.position.x + baseX + offsetX,
+        y = 1.5,
+        z = hand.position.z + baseZ + offsetZ,
+    }
+    local rotation = { 0, yaw, 0 }
 
     spawnObject({
         type = "CardCustom",
