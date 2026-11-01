@@ -255,8 +255,11 @@ function RP_loadPlayerColorPool(player, color)
                 return
             end
             local currentRecord = RP_PlayerManager.getRecord(player)
-            if not currentRecord or not rp_contains(currentRecord.selected_colors, color)
-                or currentRecord.selected_pool_variants[color] ~= variant then return end
+            if not currentRecord or not rp_contains(currentRecord.selected_colors, color) then return end
+            if currentRecord.selected_pool_variants[color] ~= variant then
+                RP_loadPlayerColorPool(player, color)
+                return
+            end
             RP_player_color_pools[playerKey][color] = decoded.cards
             RP_pool_errors[requestKey] = nil
             print(string.format("[Rogue's Passage] Loaded %d %s starter cards.", #decoded.cards, rp_colorName(color)))
@@ -400,7 +403,10 @@ function onSave()
 end
 
 function onPlayerConnect(player)
-    RP_PlayerManager.register(player)
+    local record = RP_PlayerManager.register(player)
+    for _, color in ipairs((record and record.selected_colors) or {}) do
+        RP_loadPlayerColorPool(player, color)
+    end
     RP_refreshUI()
 end
 
