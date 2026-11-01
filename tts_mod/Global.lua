@@ -130,13 +130,13 @@ end
 function RP_DeckManager.spawnCard(card, playerColor, index, total)
     local player = Player[playerColor]
     if not player then
-        print("[Rogue's Passage] Cannot spawn cards: player seat is unavailable: " .. tostring(playerColor))
+        print("[Rogue's Passage] Cannot spawn card " .. tostring(index) .. ": player seat is unavailable: " .. tostring(playerColor))
         return
     end
 
     local hand = player.getHandTransform()
     if not hand or not hand.position then
-        print("[Rogue's Passage] Cannot spawn cards: hand transform is unavailable for " .. tostring(playerColor))
+        print("[Rogue's Passage] Cannot spawn card " .. tostring(index) .. ": hand transform is unavailable for " .. tostring(playerColor))
         return
     end
 
@@ -145,8 +145,7 @@ function RP_DeckManager.spawnCard(card, playerColor, index, total)
     local cosYaw = math.cos(radians)
     local sinYaw = math.sin(radians)
 
-    -- Rotate local table offsets using numeric coordinates. This avoids relying
-    -- on Vector:rotate(), which is not available in every TTS Lua environment.
+    -- Place the pool just beyond the player's hand, rotating the layout to face the player.
     local baseLocalX, baseLocalZ = 0, 8
     local baseX = baseLocalX * cosYaw + baseLocalZ * sinYaw
     local baseZ = -baseLocalX * sinYaw + baseLocalZ * cosYaw
@@ -165,28 +164,63 @@ function RP_DeckManager.spawnCard(card, playerColor, index, total)
     }
     local rotation = { 0, yaw, 0 }
 
-    spawnObject({
-        type = "CardCustom",
-        position = position,
-        rotation = rotation,
-        callback_function = function(object)
-            if not object then return end
-            local custom = { face = card.image_url }
-            if RP_CONFIG.CARD_BACK_URL and RP_CONFIG.CARD_BACK_URL ~= "" then
-                custom.back = RP_CONFIG.CARD_BACK_URL
-            end
-            object.setCustomObject(custom)
-            object.setName(card.name or "Unknown Card")
-            object.setDescription(card.oracle_text or "")
-            object.setVar("rp_oracle_id", card.oracle_id)
-            object.setVar("rp_instance_id", card.instance_id)
-            object.setVar("rp_owner_id", card.owner_id)
-            object.setVar("rp_color", card.color)
-            object.setVar("rp_card_type_line", card.type_line or "")
-            object.setVar("rp_mana_cost", card.mana_cost or "")
-            card.object_guid = object.getGUID() -- Convenience pointer only; campaign data does not depend on it.
-        end,
-    })
+    local custom = { face = card.image_url }
+    if RP_CONFIG.CARD_BACK_URL and RP_CONFIG.CARD_BACK_URL ~= "" then
+        custom.back = RP_CONFIG.CARD_BACK_URL
+    end
+
+    print(string.format(
+        "[Rogue's Passage] Spawning card %d/%d: %s at (%.2f, %.2f, %.2f).",
+        index, total, tostring(card.name or "Unknown Card"),
+        position.x, position.y, position.z
+    ))
+
+    local ok, spawnedOrError = pcall(function()
+        return spawnObject({
+            type = "CardCustom",
+            position = position,
+            rotation = rotation,
+            callback_function = function(object)
+                if not object then
+                    print("[Rogue's Passage] Spawn callback returned no object for card " .. tostring(index) .. ".")
+                    return
+                end
+                local callbackOk, callbackError = pcall(function()
+                    object.setName(card.name or "Unknown Card")
+                    object.setDescription(card.oracle_text or "")
+                    object.setVar("rp_oracle_id", card.oracle_id)
+                    object.setVar("rp_instance_id", card.instance_id)
+                    object.setVar("rp_owner_id", card.owner_id)
+                    object.setVar("rp_color", card.color)
+                    object.setVar("rp_card_type_line", card.type_line or "")
+                    object.setVar("rp_mana_cost", card.mana_cost or "")
+                    card.object_guid = object.getGUID()
+                end)
+                if callbackOk then
+                    print("[Rogue's Passage] Spawned " .. tostring(card.name or "Unknown Card") .. " (GUID " .. tostring(card.object_guid) .. ").")
+                else
+                    print("[Rogue's Passage] Card callback error for " .. tostring(card.name) .. ": " .. tostring(callbackError))
+                end
+            end,
+        })
+    end)
+
+    if not ok then
+        print("[Rogue's Passage] spawnObject failed for " .. tostring(card.name) .. ": " .. tostring(spawnedOrError))
+        return
+    end
+
+    if not spawnedOrError then
+        print("[Rogue's Passage] spawnObject returned nil for " .. tostring(card.name) .. ".")
+        return
+    end
+
+    local customOk, customError = pcall(function()
+        spawnedOrError.setCustomObject(custom)
+    end)
+    if not customOk then
+        print("[Rogue's Passage] setCustomObject failed for " .. tostring(card.name) .. ": " .. tostring(customError))
+    end
 end
 
 function RP_DeckManager.spawnStarterPool(player, record)
