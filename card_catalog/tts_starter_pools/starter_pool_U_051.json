@@ -1,1 +1,136 @@
-{"color":"U","variant":51,"cards":[{"oracle_id":"32e60fb4-e841-4f82-9c83-5e63766e8e6f","name":"Spellstutter Sprite","color":"U","mana_cost":"{1}{U}","cmc":2.0,"type_line":"Creature — Faerie Wizard","oracle_text":"Flash\nFlying\nWhen this creature enters, counter target spell with mana value X or less, where X is the number of Faeries you control.","power":"1","toughness":"1","image_url":"https://cards.scryfall.io/png/front/4/e/4e5ba4a9-a282-4d4b-b25a-179e05e458f4.png","scryfall_uri":"https://scryfall.com/card/lrw/89/spellstutter-sprite?utm_source=api"},{"oracle_id":"e51680d1-3e6c-4d1b-9705-36f73d7328cf","name":"Rookie Mistake","color":"U","mana_cost":"{U}","cmc":1.0,"type_line":"Instant","oracle_text":"Until end of turn, target creature gets +0/+2 and another target creature gets -2/-0.","power":null,"toughness":null,"image_url":"https://cards.scryfall.io/png/front/b/1/b19de7a5-c291-405b-a2e6-8d3ac56e6570.png","scryfall_uri":"https://scryfall.com/card/m21/66/rookie-mistake?utm_source=api"},{"oracle_id":"c50354fc-7dfe-4ea7-87dd-488ca6213344","name":"Psychic Overload","color":"U","mana_cost":"{3}{U}","cmc":4.0,"type_line":"Enchantment — Aura","oracle_text":"Enchant permanent\nWhen this Aura enters, tap enchanted permanent.\nEnchanted permanent doesn't untap during its controller's untap step.\nEnchanted permanent has \"Discard two artifact cards: Untap this permanent.\"","power":null,"toughness":null,"image_url":"https://raw.githubusercontent.com/alphacharlieecho/rogues-passage/main/card_catalog/tts_card_images/test_face_2.png","scryfall_uri":"https://scryfall.com/card/dst/28/psychic-overload?utm_source=api"},{"oracle_id":"f9221367-24a5-41a3-8943-c6a3cb5d605d","name":"Riverwheel Aerialists","color":"U","mana_cost":"{5}{U}","cmc":6.0,"type_line":"Creature — Djinn Monk","oracle_text":"Flying\nProwess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)","power":"4","toughness":"5","image_url":"https://cards.scryfall.io/png/front/c/2/c210b102-8a94-4b5e-858a-777fa8ad18b9.png","scryfall_uri":"https://scryfall.com/card/ktk/51/riverwheel-aerialists?utm_source=api"},{"oracle_id":"3d3e6dc0-2aed-4afa-bfa9-59d04ade9bee","name":"Ethereal Whiskergill","color":"U","mana_cost":"{3}{U}","cmc":4.0,"type_line":"Creature — Elemental","oracle_text":"Flying\nThis creature can't attack unless defending player controls an Island.","power":"4","toughness":"3","image_url":"https://cards.scryfall.io/png/front/5/b/5b9fa774-fb6d-4a2f-96d5-a449a423312e.png","scryfall_uri":"https://scryfall.com/card/lrw/60/ethereal-whiskergill?utm_source=api"},{"oracle_id":"6d2d250b-cdce-4075-8724-b52ad31664fb","name":"Highspire Bell-Ringer","color":"U","mana_cost":"{2}{U}","cmc":3.0,"type_line":"Creature — Djinn Monk","oracle_text":"Flying\nThe second spell you cast each turn costs {1} less to cast.","power":"1","toughness":"4","image_url":"https://cards.scryfall.io/png/front/e/7/e75dccf7-2894-4c4a-b516-3eee73acddd3.png","scryfall_uri":"https://scryfall.com/card/tdm/47/highspire-bell-ringer?utm_source=api"},{"oracle_id":"3708eaae-9306-46b2-ae41-7ce6c50be3c7","name":"Mysteries of the Deep","color":"U","mana_cost":"{4}{U}","cmc":5.0,"type_line":"Instant","oracle_text":"Draw two cards.\nLandfall — If you had a land enter the battlefield under your control this turn, draw three cards instead.","power":null,"toughness":null,"image_url":"https://cards.scryfall.io/png/front/1/9/1907b1e9-ae1e-43fb-9033-3c4322277fff.png","scryfall_uri":"https://scryfall.com/card/wwk/33/mysteries-of-the-deep?utm_source=api"},{"oracle_id":"56fd0752-9fb0-4c05-90e5-c3b268b57c6f","name":"Cone of Cold","color":"U","mana_cost":"{3}{U}","cmc":4.0,"type_line":"Sorcery","oracle_text":"Roll a d20.\n1—9 | Tap all creatures your opponents control.\n10—19 | Tap all creatures your opponents control. Those creatures don't untap during their controllers' next untap steps.\n20 | Tap all creatures your opponents control. Those creatures don't untap during their controllers' next untap steps. Until your next turn, creatures your opponents control enter tapped.","power":null,"toughness":null,"image_url":"https://cards.scryfall.io/png/front/d/0/d010948a-d3f8-4ce3-9c9b-6e905a3f7087.png","scryfall_uri":"https://scryfall.com/card/clb/61/cone-of-cold?utm_source=api"},{"oracle_id":"ba858b68-ae93-4e1c-8a3a-3e4ac97282e8","name":"Moonsnare Specialist","color":"U","mana_cost":"{3}{U}","cmc":4.0,"type_line":"Creature — Human Ninja","oracle_text":"Ninjutsu {2}{U} ({2}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhen this creature enters, return up to one target creature to its owner's hand.","power":"2","toughness":"2","image_url":"https://cards.scryfall.io/png/front/1/e/1e8b209f-f577-45cc-9d18-03c1d67d391e.png","scryfall_uri":"https://scryfall.com/card/neo/70/moonsnare-specialist?utm_source=api"},{"oracle_id":"a61277d6-a27d-45d1-ba2a-7afe1b8f5ce1","name":"Encase in Ice","color":"U","mana_cost":"{1}{U}","cmc":2.0,"type_line":"Enchantment — Aura","oracle_text":"Flash (You may cast this spell any time you could cast an instant.)\nEnchant red or green creature\nWhen this Aura enters, tap enchanted creature.\nEnchanted creature doesn't untap during its controller's untap step.","power":null,"toughness":null,"image_url":"https://cards.scryfall.io/png/front/b/c/bcad5bd9-3236-48d4-920f-c3ed12d5f329.png","scryfall_uri":"https://scryfall.com/card/dtk/54/encase-in-ice?utm_source=api"}]}
+{
+  "color": "U",
+  "variant": 51,
+  "cards": [
+    {
+      "oracle_id": "32e60fb4-e841-4f82-9c83-5e63766e8e6f",
+      "name": "Spellstutter Sprite",
+      "color": "U",
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "type_line": "Creature — Faerie Wizard",
+      "oracle_text": "Flash\nFlying\nWhen this creature enters, counter target spell with mana value X or less, where X is the number of Faeries you control.",
+      "power": "1",
+      "toughness": "1",
+      "image_url": "https://cards.scryfall.io/png/front/4/e/4e5ba4a9-a282-4d4b-b25a-179e05e458f4.png",
+      "scryfall_uri": "https://scryfall.com/card/lrw/89/spellstutter-sprite?utm_source=api"
+    },
+    {
+      "oracle_id": "e51680d1-3e6c-4d1b-9705-36f73d7328cf",
+      "name": "Rookie Mistake",
+      "color": "U",
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "type_line": "Instant",
+      "oracle_text": "Until end of turn, target creature gets +0/+2 and another target creature gets -2/-0.",
+      "power": null,
+      "toughness": null,
+      "image_url": "https://cards.scryfall.io/png/front/b/1/b19de7a5-c291-405b-a2e6-8d3ac56e6570.png",
+      "scryfall_uri": "https://scryfall.com/card/m21/66/rookie-mistake?utm_source=api"
+    },
+    {
+      "oracle_id": "c50354fc-7dfe-4ea7-87dd-488ca6213344",
+      "name": "Psychic Overload",
+      "color": "U",
+      "mana_cost": "{3}{U}",
+      "cmc": 4,
+      "type_line": "Enchantment — Aura",
+      "oracle_text": "Enchant permanent\nWhen this Aura enters, tap enchanted permanent.\nEnchanted permanent doesn't untap during its controller's untap step.\nEnchanted permanent has \"Discard two artifact cards: Untap this permanent.\"",
+      "power": null,
+      "toughness": null,
+      "image_url": "https://raw.githubusercontent.com/alphacharlieecho/rogues-passage/main/card_catalog/tts_card_images/test_face_2.png",
+      "scryfall_uri": "https://scryfall.com/card/dst/28/psychic-overload?utm_source=api"
+    },
+    {
+      "oracle_id": "f9221367-24a5-41a3-8943-c6a3cb5d605d",
+      "name": "Riverwheel Aerialists",
+      "color": "U",
+      "mana_cost": "{5}{U}",
+      "cmc": 6,
+      "type_line": "Creature — Djinn Monk",
+      "oracle_text": "Flying\nProwess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)",
+      "power": "4",
+      "toughness": "5",
+      "image_url": "https://cards.scryfall.io/png/front/c/2/c210b102-8a94-4b5e-858a-777fa8ad18b9.png",
+      "scryfall_uri": "https://scryfall.com/card/ktk/51/riverwheel-aerialists?utm_source=api"
+    },
+    {
+      "oracle_id": "3d3e6dc0-2aed-4afa-bfa9-59d04ade9bee",
+      "name": "Ethereal Whiskergill",
+      "color": "U",
+      "mana_cost": "{3}{U}",
+      "cmc": 4,
+      "type_line": "Creature — Elemental",
+      "oracle_text": "Flying\nThis creature can't attack unless defending player controls an Island.",
+      "power": "4",
+      "toughness": "3",
+      "image_url": "https://cards.scryfall.io/png/front/5/b/5b9fa774-fb6d-4a2f-96d5-a449a423312e.png",
+      "scryfall_uri": "https://scryfall.com/card/lrw/60/ethereal-whiskergill?utm_source=api"
+    },
+    {
+      "oracle_id": "6d2d250b-cdce-4075-8724-b52ad31664fb",
+      "name": "Highspire Bell-Ringer",
+      "color": "U",
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "type_line": "Creature — Djinn Monk",
+      "oracle_text": "Flying\nThe second spell you cast each turn costs {1} less to cast.",
+      "power": "1",
+      "toughness": "4",
+      "image_url": "https://cards.scryfall.io/png/front/e/7/e75dccf7-2894-4c4a-b516-3eee73acddd3.png",
+      "scryfall_uri": "https://scryfall.com/card/tdm/47/highspire-bell-ringer?utm_source=api"
+    },
+    {
+      "oracle_id": "3708eaae-9306-46b2-ae41-7ce6c50be3c7",
+      "name": "Mysteries of the Deep",
+      "color": "U",
+      "mana_cost": "{4}{U}",
+      "cmc": 5,
+      "type_line": "Instant",
+      "oracle_text": "Draw two cards.\nLandfall — If you had a land enter the battlefield under your control this turn, draw three cards instead.",
+      "power": null,
+      "toughness": null,
+      "image_url": "https://cards.scryfall.io/png/front/1/9/1907b1e9-ae1e-43fb-9033-3c4322277fff.png",
+      "scryfall_uri": "https://scryfall.com/card/wwk/33/mysteries-of-the-deep?utm_source=api"
+    },
+    {
+      "oracle_id": "56fd0752-9fb0-4c05-90e5-c3b268b57c6f",
+      "name": "Cone of Cold",
+      "color": "U",
+      "mana_cost": "{3}{U}",
+      "cmc": 4,
+      "type_line": "Sorcery",
+      "oracle_text": "Roll a d20.\n1—9 | Tap all creatures your opponents control.\n10—19 | Tap all creatures your opponents control. Those creatures don't untap during their controllers' next untap steps.\n20 | Tap all creatures your opponents control. Those creatures don't untap during their controllers' next untap steps. Until your next turn, creatures your opponents control enter tapped.",
+      "power": null,
+      "toughness": null,
+      "image_url": "https://cards.scryfall.io/png/front/d/0/d010948a-d3f8-4ce3-9c9b-6e905a3f7087.png",
+      "scryfall_uri": "https://scryfall.com/card/clb/61/cone-of-cold?utm_source=api"
+    },
+    {
+      "oracle_id": "ba858b68-ae93-4e1c-8a3a-3e4ac97282e8",
+      "name": "Moonsnare Specialist",
+      "color": "U",
+      "mana_cost": "{3}{U}",
+      "cmc": 4,
+      "type_line": "Creature — Human Ninja",
+      "oracle_text": "Ninjutsu {2}{U} ({2}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhen this creature enters, return up to one target creature to its owner's hand.",
+      "power": "2",
+      "toughness": "2",
+      "image_url": "https://cards.scryfall.io/png/front/1/e/1e8b209f-f577-45cc-9d18-03c1d67d391e.png",
+      "scryfall_uri": "https://scryfall.com/card/neo/70/moonsnare-specialist?utm_source=api"
+    },
+    {
+      "oracle_id": "a61277d6-a27d-45d1-ba2a-7afe1b8f5ce1",
+      "name": "Encase in Ice",
+      "color": "U",
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "type_line": "Enchantment — Aura",
+      "oracle_text": "Flash (You may cast this spell any time you could cast an instant.)\nEnchant red or green creature\nWhen this Aura enters, tap enchanted creature.\nEnchanted creature doesn't untap during its controller's untap step.",
+      "power": null,
+      "toughness": null,
+      "image_url": "https://cards.scryfall.io/png/front/b/c/bcad5bd9-3236-48d4-920f-c3ed12d5f329.png",
+      "scryfall_uri": "https://scryfall.com/card/dtk/54/encase-in-ice?utm_source=api"
+    }
+  ]
+}
