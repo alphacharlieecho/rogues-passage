@@ -5,7 +5,7 @@
 -- IMPORTANT: Set CATALOG_URL to the public raw URL of card_catalog/tts_catalog.json.
 
 RP_CONFIG = {
-    CATALOG_URL = "https://raw.githubusercontent.com/alphacharlieecho/rogues-passage/8ef6a53102f4afbc632f8258d46bcfe631c127ad/card_catalog/tts_catalog.json",
+    CATALOG_BASE_URL = "https://raw.githubusercontent.com/alphacharlieecho/rogues-passage/main/card_catalog/tts_catalogs/tts_catalog_",
     CARDS_PER_COLOR = 10,
     MAX_COPIES_PER_ORACLE_ID = 4,
     CARD_BACK_URL = nil, -- Optional; leave nil to use TTS's default card back.
@@ -24,8 +24,9 @@ RP_campaign = {
     players = {},
     next_instance_id = 1,
 }
-RP_catalog = nil
-RP_catalog_error = nil
+RP_catalogs = {}
+RP_catalog_loading = {}
+RP_catalog_errors = {}
 
 RP_PlayerManager = {}
 RP_DeckManager = {}
@@ -124,12 +125,13 @@ function RP_DeckManager.shuffle(list)
 end
 
 function RP_DeckManager.chooseCards(color)
-    if not RP_catalog or type(RP_catalog.cards) ~= "table" then
-        return nil, "The card catalog has not loaded yet."
+    local colorCatalog = RP_catalogs[color]
+    if not colorCatalog or type(colorCatalog.cards) ~= "table" then
+        return nil, "The " .. rp_colorName(color) .. " card catalog has not loaded yet."
     end
 
     local eligible = {}
-    for _, card in ipairs(RP_catalog.cards) do
+    for _, card in ipairs(colorCatalog.cards) do
         if card.color == color and card.image_url and card.oracle_id then
             table.insert(eligible, card)
         end
@@ -212,10 +214,13 @@ function RP_DeckManager.generateStarterPool(player)
     local record = RP_PlayerManager.register(player)
     if not record then return false, "Could not identify this player." end
     if record.starter_pool then return false, "Your starter pool has already been generated." end
-    if not RP_catalog then return false, "The card catalog is still loading. Please try again shortly." end
-
     local selected = record.selected_colors or {}
     if #selected ~= 2 then return false, "Select exactly two colors before generating your pool." end
+    for _, color in ipairs(selected) do
+        if not RP_catalogs[color] then
+            return false, "The " .. rp_colorName(color) .. " card catalog is still loading. Please try again shortly."
+        end
+    end
 
     local pool = {}
     for _, color in ipairs(selected) do
@@ -256,6 +261,13 @@ function RP_toggleColor(player, value, id)
     local ok, err = RP_PlayerManager.toggleColor(player, value)
     if not ok then
         broadcastToColor(err, player.color, { 1, 0.35, 0.25 })
+    else
+        local record = RP_PlayerManager.getRecord(player)
+        if record then
+            for _, color in ipairs(record.selected_colors or {}) do
+                RP_loadColorCatalog(color)
+            end
+        end
     end
     RP_refreshUI()
 end
@@ -292,7 +304,11 @@ function RP_refreshUI()
             status = "Starter pool generated: " .. tostring(#(record.starter_pool.cards or {})) .. " cards."
         else
             status = string.format("Choose exactly two colors (%d/2).", #selected)
-            local disabled = (#selected == 2 and RP_catalog ~= nil) and "" or " interactable=\"false\""
+            local catalogsReady = (#selected == 2)
+            for _, color in ipairs(selected) do
+                if not RP_catalogs[color] then catalogsReady = false end
+            end
+            local disabled = catalogsReady and "" or " interactable=\"false\""
             confirmButton = '<Button id="rp_confirm_' .. player.color .. '" text="Generate 20-card starter pool" onClick="RP_generateStarterPool" function_owner="Global" width="250" height="42"' .. disabled .. ' />'
         end
 
@@ -311,41 +327,48 @@ function RP_refreshUI()
         ]], player.color, player.color, rp_escapeXml(record.name), player.color,
             table.concat(buttons, "", 1, 3), table.concat(buttons, "", 4, 5),
             rp_escapeXml(status), confirmButton,
-            RP_catalog and "loaded" or (RP_catalog_error and "error" or "loading")))
+            (#selected == 0 and "select colors" or
+                (RP_catalog_errors[selected[1]] or RP_catalog_errors[selected[2]] or
+                    ((#selected == 2 and RP_catalogs[selected[1]] and RP_catalogs[selected[2]]) and "loaded" or "loading")))))
     end
 
     UI.setXml('<Panel id="rp_root">' .. table.concat(panels, "\n") .. '</Panel>')
 end
 
-function RP_loadCatalog()
-    if not RP_CONFIG.CATALOG_URL or RP_CONFIG.CATALOG_URL == "" or
-        RP_CONFIG.CATALOG_URL == "PASTE_PUBLIC_RAW_TTS_CATALOG_URL_HERE" then
-        RP_catalog_error = "Catalog URL is not configured."
-        print("[Rogue's Passage] Set RP_CONFIG.CATALOG_URL in Global.lua to the public raw tts_catalog.json URL.")
+function RP_loadColorCatalog(color)
+    if RP_catalogs[color] or RP_catalog_loading[color] then return end
+    if not RP_CONFIG.CATALOG_BASE_URL or RP_CONFIG.CATALOG_BASE_URL == "" then
+        RP_catalog_errors[color] = "Catalog base URL is not configured."
+        print("[Rogue's Passage] Set RP_CONFIG.CATALOG_BASE_URL in Global.lua.")
         RP_refreshUI()
         return
     end
 
-    print("[Rogue's Passage] Downloading card catalog...")
-    WebRequest.get(RP_CONFIG.CATALOG_URL, function(request)
+    local url = RP_CONFIG.CATALOG_BASE_URL .. color .. ".json"
+    RP_catalog_loading[color] = true
+    RP_catalog_errors[color] = nil
+    print("[Rogue's Passage] Downloading " .. rp_colorName(color) .. " card catalog...")
+    WebRequest.get(url, function(request)
+        RP_catalog_loading[color] = nil
         if request.is_error then
-            RP_catalog_error = request.error or "Web request failed."
-            print("[Rogue's Passage] Catalog download failed: " .. tostring(RP_catalog_error))
+            RP_catalog_errors[color] = request.error or "Web request failed."
+            print("[Rogue's Passage] " .. rp_colorName(color) .. " catalog download failed: " .. tostring(RP_catalog_errors[color]))
             RP_refreshUI()
             return
         end
 
-        local ok, decoded = pcall(function() return JSON.decode(request.text) end)
-        if not ok or type(decoded) ~= "table" or type(decoded.cards) ~= "table" then
-            RP_catalog_error = "Catalog JSON is invalid or has an unsupported schema."
-            print("[Rogue's Passage] " .. RP_catalog_error)
+        local response = request.text or ""
+        print("[Rogue's Passage] " .. rp_colorName(color) .. " catalog received (" .. tostring(#response) .. " characters); parsing JSON...")
+        local ok, decoded = pcall(function() return JSON.decode(response) end)
+        if not ok or type(decoded) ~= "table" or type(decoded.cards) ~= "table" or decoded.color ~= color then
+            RP_catalog_errors[color] = "Color catalog JSON is invalid or has an unsupported schema."
+            print("[Rogue's Passage] " .. RP_catalog_errors[color] .. " (" .. color .. ")")
             RP_refreshUI()
             return
         end
 
-        RP_catalog = decoded
-        RP_catalog_error = nil
-        print(string.format("[Rogue's Passage] Loaded %d cards.", #RP_catalog.cards))
+        RP_catalogs[color] = decoded
+        print(string.format("[Rogue's Passage] Loaded %d %s cards.", #decoded.cards, rp_colorName(color)))
         RP_refreshUI()
     end)
 end
@@ -365,7 +388,6 @@ function onLoad(saved_data)
     math.randomseed(os.time())
     RP_PlayerManager.registerSeatedPlayers()
     RP_refreshUI()
-    RP_loadCatalog()
 end
 
 function onSave()
