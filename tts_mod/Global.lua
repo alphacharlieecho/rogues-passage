@@ -480,6 +480,42 @@ function onPlayerDisconnect(player)
 end
 
 
+-- Third diagnostic: test TTS JSON decoding independently of the catalog loader.
+function RP_testCatalogDecode()
+    local url = RP_CONFIG.CATALOG_BASE_URL .. "W.json"
+    print("[RP TEST 3] Starting catalog download for JSON decode test.")
+
+    WebRequest.get(url, function(request)
+        print("[RP TEST 3] Download callback entered.")
+        if request.is_error then
+            print("[RP TEST 3] Download failed: " .. tostring(request.error))
+            return
+        end
+
+        local response = request.text or ""
+        print("[RP TEST 3] Response received: " .. tostring(#response) .. " characters.")
+        print("[RP TEST 3] Starting JSON.decode.")
+        local ok, decoded = pcall(function()
+            return JSON.decode(response)
+        end)
+        print("[RP TEST 3] JSON.decode returned; success=" .. tostring(ok) .. ".")
+        if not ok then
+            print("[RP TEST 3] Decode error: " .. tostring(decoded))
+            return
+        end
+
+        print("[RP TEST 3] Decoded value type: " .. tostring(type(decoded)))
+        print("[RP TEST 3] Cards field type: " .. tostring(type(decoded.cards)))
+        print("[RP TEST 3] Color field: " .. tostring(decoded.color))
+        if type(decoded.cards) == "table" then
+            print("[RP TEST 3] Card count: " .. tostring(#decoded.cards))
+        end
+        print("[RP TEST 3] Decode test complete.")
+    end)
+
+    print("[RP TEST 3] WebRequest.get returned.")
+end
+
 -- Second diagnostic: reproduce the loader's local callback and pcall wrapper,
 -- but deliberately omit queue state, JSON parsing, UI refresh, and timeout logic.
 function RP_testCatalogLoaderCallback()
