@@ -385,7 +385,6 @@ function RP_refreshUI()
     UI.setXml('<Panel id="rp_root">' .. table.concat(panels, "\n") .. '</Panel>')
 end
 
--- Process one catalog request at a time to avoid overlapping downloads/parses.
 function onLoad(saved_data)
     if saved_data and saved_data ~= "" then
         local ok, saved = pcall(function() return JSON.decode(saved_data) end)
