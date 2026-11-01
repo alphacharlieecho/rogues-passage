@@ -46,11 +46,11 @@ The script chooses a random variant from 001 through 100 for each selected playe
 1. Open the Tabletop Simulator save where you want to run Rogue's Passage.
 2. Open **Modding → Scripting** (or the in-game scripting editor).
 3. Open `tts_mod/Global.lua` in a text editor.
-4. Confirm `RP_CONFIG.CATALOG_BASE_URL` points to the hosted `card_catalog/tts_catalogs/tts_catalog_` filename prefix.
+4. Confirm `RP_CONFIG.STARTER_POOL_BASE_URL` points to the hosted `card_catalog/tts_starter_pools/starter_pool_` filename prefix.
 5. Copy the complete contents of `Global.lua` into the TTS **Global** script.
 6. Save/apply the script and reload the table if needed.
 
-When a player selects a color, its catalog downloads. Once both selected catalogs are loaded, the **Generate 20-card starter pool** button becomes available. Color catalogs are cached for the current TTS session, so different players selecting the same color do not trigger duplicate downloads.
+When a player selects a color, TTS downloads that player's assigned 10-card color pool. Once both selected color pools are loaded, the **Generate 20-card starter pool** button becomes available. Selected variant numbers are saved in campaign data so a reload fetches the same pools until the player generates their starter pool.
 
 ## 4. Current limitations / next test pass
 
