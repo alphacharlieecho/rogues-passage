@@ -185,6 +185,31 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(card["image_url"], "https://example.test/front.jpg")
         self.assertNotIn("printings", card)
 
+    def test_builds_five_separate_color_catalogs(self):
+        source = []
+        for color in ("W", "U", "B", "R", "G"):
+            source.append({
+                "oracle_id": "card-" + color,
+                "name": color + " Card",
+                "color": color,
+                "mana_cost": "{" + color + "}",
+                "cmc": 1,
+                "type_line": "Creature — Test",
+                "oracle_text": "A test ability.",
+                "power": "1",
+                "toughness": "1",
+                "printings": [{
+                    "scryfall_uri": "https://scryfall.com/card/tst/1",
+                    "image_uris": {"normal": "https://example.test/" + color + ".jpg"},
+                }],
+            })
+        catalogs = build_catalog.build_tts_color_catalogs(source)
+        self.assertEqual(set(catalogs), {"W", "U", "B", "R", "G"})
+        for color, result in catalogs.items():
+            self.assertEqual(result["color"], color)
+            self.assertEqual(len(result["cards"]), 1)
+            self.assertEqual(result["cards"][0]["color"], color)
+
     def test_reports_shortage_when_no_cards_available(self):
         with self.assertRaises(ValueError):
             build_catalog.generate_pool([], ("W", "U"), CONFIG, __import__("random").Random(42))
