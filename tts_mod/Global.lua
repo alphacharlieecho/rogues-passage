@@ -10,6 +10,7 @@ RP_CONFIG = {
     STARTER_POOL_VARIANTS = 100,
     -- TEMPORARY image-host test: force known pools containing Aven Sunstriker and Psychic Overload.
     TEST_POOL_VARIANTS = { W = 88, U = 51 },
+    RESET_CAMPAIGN_ON_LOAD = true, -- TEMPORARY: clear saved campaign state for the image-host test.
     CARD_BACK_URL = "https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg", -- Standard Magic card back.
 }
 
@@ -549,7 +550,10 @@ function RP_refreshUI()
 end
 
 function onLoad(saved_data)
-    if saved_data and saved_data ~= "" then
+    if RP_CONFIG.RESET_CAMPAIGN_ON_LOAD then
+        RP_campaign = { schema_version = 1, players = {}, next_instance_id = 1 }
+        print("[Rogue's Passage] TEST RESET: started a fresh campaign state.")
+    elseif saved_data and saved_data ~= "" then
         local ok, saved = pcall(function() return JSON.decode(saved_data) end)
         if ok and type(saved) == "table" and type(saved.campaign) == "table" then
             RP_campaign = saved.campaign
