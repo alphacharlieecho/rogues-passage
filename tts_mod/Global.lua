@@ -503,12 +503,14 @@ end
 -- Fifth diagnostic: decode a synthetic catalog with representative card fields.
 -- Starts with only 25 records to keep the test deliberately small.
 function RP_testSmallCatalogDecode()
-    local cardJson = '{"oracle_id":"sample-oracle-id","name":"Sample Card","color":"W","mana_cost":"{1}{W}","cmc":2,"type_line":"Creature — Human Soldier","oracle_text":"Vigilance\nWhen this creature enters the battlefield, draw a card.","power":"2","toughness":"2","image_url":"https://cards.scryfall.io/normal/front/sample.jpg","scryfall_uri":"https://scryfall.com/card/sample"}'
+    local cardJson = [[{"oracle_id":"sample-oracle-id","name":"Sample Card","color":"W","mana_cost":"{1}{W}","cmc":2,"type_line":"Creature — Human Soldier","oracle_text":"Vigilance\\nWhen this creature enters the battlefield, draw a card.","power":"2","toughness":"2","image_url":"https://cards.scryfall.io/normal/front/sample.jpg","scryfall_uri":"https://scryfall.com/card/sample"}]]
     local cards = {}
     for index = 1, 25 do
         cards[index] = cardJson
     end
-    local payload = '{"project_name":"Rogue''s Passage","schema_version":1,"generated_by":"RoguesPassageCardCatalog/0.3","color":"W","cards":[' .. table.concat(cards, ",") .. ']}'
+    local payloadPrefix = [[{"project_name":"Rogue's Passage","schema_version":1,"generated_by":"RoguesPassageCardCatalog/0.3","color":"W","cards":[
+    ]]
+    local payload = payloadPrefix .. table.concat(cards, ",") .. "]}"
 
     print("[RP TEST 5] Starting representative catalog decode.")
     print("[RP TEST 5] Payload size: " .. tostring(#payload) .. " characters; records: 25.")
