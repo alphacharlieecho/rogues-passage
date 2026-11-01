@@ -27,6 +27,10 @@ RP_campaign = {
 RP_catalogs = {}
 RP_catalog_loading = {}
 RP_catalog_errors = {}
+RP_catalog_queue = {}
+RP_catalog_queued = {}
+RP_catalog_active = nil
+RP_catalog_request_id = 0
 
 RP_PlayerManager = {}
 RP_DeckManager = {}
@@ -343,8 +347,70 @@ function RP_refreshUI()
     UI.setXml('<Panel id="rp_root">' .. table.concat(panels, "\n") .. '</Panel>')
 end
 
+-- Process one catalog request at a time to avoid overlapping downloads/parses.
+function RP_processNextCatalog()
+    if RP_catalog_active or #RP_catalog_queue == 0 then return end
+
+    local color = table.remove(RP_catalog_queue, 1)
+    RP_catalog_queued[color] = nil
+    if RP_catalogs[color] then
+        RP_processNextCatalog()
+        return
+    end
+
+    RP_catalog_request_id = RP_catalog_request_id + 1
+    local requestId = RP_catalog_request_id
+    local url = RP_CONFIG.CATALOG_BASE_URL .. color .. ".json"
+    RP_catalog_active = { color = color, id = requestId }
+    RP_catalog_loading[color] = true
+    RP_catalog_errors[color] = nil
+
+    print("[Rogue's Passage] Starting " .. rp_colorName(color) .. " catalog request (" .. url .. ").")
+    WebRequest.get(url, function(request)
+        -- Ignore callbacks from a request that already timed out.
+        if not RP_catalog_active or RP_catalog_active.id ~= requestId then
+            print("[Rogue's Passage] Ignoring late " .. rp_colorName(color) .. " catalog response.")
+            return
+        end
+
+        if request.is_error then
+            RP_catalog_errors[color] = request.error or "Web request failed."
+            print("[Rogue's Passage] " .. rp_colorName(color) .. " catalog download failed: " .. tostring(RP_catalog_errors[color]))
+        else
+            local response = request.text or ""
+            print("[Rogue's Passage] " .. rp_colorName(color) .. " response received (" .. tostring(#response) .. " characters).")
+            print("[Rogue's Passage] Parsing " .. rp_colorName(color) .. " catalog JSON...")
+            local ok, decoded = pcall(function() return JSON.decode(response) end)
+            if not ok or type(decoded) ~= "table" or type(decoded.cards) ~= "table" or decoded.color ~= color then
+                RP_catalog_errors[color] = "Color catalog JSON is invalid or has an unsupported schema."
+                print("[Rogue's Passage] " .. RP_catalog_errors[color] .. " (" .. color .. ")")
+            else
+                RP_catalogs[color] = decoded
+                print(string.format("[Rogue's Passage] Loaded %d %s cards.", #decoded.cards, rp_colorName(color)))
+            end
+        end
+
+        RP_catalog_loading[color] = nil
+        RP_catalog_active = nil
+        RP_refreshUI()
+        RP_processNextCatalog()
+    end)
+
+    -- If WebRequest never calls back, release the queue after 30 seconds.
+    Wait.time(function()
+        if RP_catalog_active and RP_catalog_active.id == requestId then
+            RP_catalog_active = nil
+            RP_catalog_loading[color] = nil
+            RP_catalog_errors[color] = "Catalog request timed out after 30 seconds."
+            print("[Rogue's Passage] " .. rp_colorName(color) .. " catalog request timed out.")
+            RP_refreshUI()
+            RP_processNextCatalog()
+        end
+    end, 30)
+end
+
 function RP_loadColorCatalog(color)
-    if RP_catalogs[color] or RP_catalog_loading[color] then return end
+    if RP_catalogs[color] or RP_catalog_loading[color] or RP_catalog_queued[color] then return end
     if not RP_CONFIG.CATALOG_BASE_URL or RP_CONFIG.CATALOG_BASE_URL == "" then
         RP_catalog_errors[color] = "Catalog base URL is not configured."
         print("[Rogue's Passage] Set RP_CONFIG.CATALOG_BASE_URL in Global.lua.")
@@ -352,33 +418,10 @@ function RP_loadColorCatalog(color)
         return
     end
 
-    local url = RP_CONFIG.CATALOG_BASE_URL .. color .. ".json"
-    RP_catalog_loading[color] = true
-    RP_catalog_errors[color] = nil
-    print("[Rogue's Passage] Downloading " .. rp_colorName(color) .. " card catalog...")
-    WebRequest.get(url, function(request)
-        RP_catalog_loading[color] = nil
-        if request.is_error then
-            RP_catalog_errors[color] = request.error or "Web request failed."
-            print("[Rogue's Passage] " .. rp_colorName(color) .. " catalog download failed: " .. tostring(RP_catalog_errors[color]))
-            RP_refreshUI()
-            return
-        end
-
-        local response = request.text or ""
-        print("[Rogue's Passage] " .. rp_colorName(color) .. " catalog received (" .. tostring(#response) .. " characters); parsing JSON...")
-        local ok, decoded = pcall(function() return JSON.decode(response) end)
-        if not ok or type(decoded) ~= "table" or type(decoded.cards) ~= "table" or decoded.color ~= color then
-            RP_catalog_errors[color] = "Color catalog JSON is invalid or has an unsupported schema."
-            print("[Rogue's Passage] " .. RP_catalog_errors[color] .. " (" .. color .. ")")
-            RP_refreshUI()
-            return
-        end
-
-        RP_catalogs[color] = decoded
-        print(string.format("[Rogue's Passage] Loaded %d %s cards.", #decoded.cards, rp_colorName(color)))
-        RP_refreshUI()
-    end)
+    RP_catalog_queued[color] = true
+    table.insert(RP_catalog_queue, color)
+    print("[Rogue's Passage] Queued " .. rp_colorName(color) .. " card catalog (queue: " .. tostring(#RP_catalog_queue) .. ").")
+    RP_processNextCatalog()
 end
 
 function onLoad(saved_data)
