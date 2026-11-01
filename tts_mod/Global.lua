@@ -274,12 +274,7 @@ function RP_toggleColor(player, value, id)
     if not ok then
         broadcastToColor(err, player.color, { 1, 0.35, 0.25 })
     else
-        local record = RP_PlayerManager.getRecord(player)
-        if record then
-            for _, color in ipairs(record.selected_colors or {}) do
-                RP_loadColorCatalog(color)
-            end
-        end
+        -- Automatic catalog loading is disabled during this diagnostic test.
     end
     RP_refreshUI()
 end
@@ -458,13 +453,7 @@ function onLoad(saved_data)
 
     math.randomseed(os.time())
     RP_PlayerManager.registerSeatedPlayers()
-    -- Restore downloads for colors players had already selected before the save/reload.
-    for _, player in ipairs(Player.getPlayers()) do
-        local record = RP_PlayerManager.getRecord(player)
-        for _, color in ipairs((record and record.selected_colors) or {}) do
-            RP_loadColorCatalog(color)
-        end
-    end
+    -- Automatic catalog loading is disabled during this diagnostic test.
     RP_refreshUI()
 end
 
@@ -488,4 +477,28 @@ end
 
 function onPlayerDisconnect(player)
     RP_refreshUI()
+end
+
+
+-- TEMPORARY DIAGNOSTIC:
+-- Run RP_testCatalogRequest() from the TTS scripting console after loading.
+-- This uses the known-good standalone request while the full mod is loaded.
+function RP_testCatalogRequest()
+    local url = RP_CONFIG.CATALOG_BASE_URL .. "W.json"
+    print("[Rogue's Passage TEST] Starting standalone request from full mod.")
+    print("[Rogue's Passage TEST] URL: " .. url)
+
+    WebRequest.get(url, function(request)
+        print("[Rogue's Passage TEST] CALLBACK RECEIVED.")
+        print("[Rogue's Passage TEST] Is error: " .. tostring(request.is_error))
+        print("[Rogue's Passage TEST] Error message: " .. tostring(request.error))
+        local response = request.text or ""
+        print("[Rogue's Passage TEST] Response length: " .. tostring(#response) .. " characters.")
+        if #response > 0 then
+            print("[Rogue's Passage TEST] First 100 characters: " .. string.sub(response, 1, 100))
+        end
+        print("[Rogue's Passage TEST] Test complete.")
+    end)
+
+    print("[Rogue's Passage TEST] WebRequest.get returned.")
 end
