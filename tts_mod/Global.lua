@@ -5,7 +5,7 @@
 -- IMPORTANT: Set CATALOG_URL to the public raw URL of card_catalog/tts_catalog.json.
 
 RP_CONFIG = {
-    CATALOG_URL = "PASTE_PUBLIC_RAW_TTS_CATALOG_URL_HERE",
+    CATALOG_URL = "https://github.com/alphacharlieecho/rogues-passage/blob/8ef6a53102f4afbc632f8258d46bcfe631c127ad/card_catalog/tts_catalog.json",
     CARDS_PER_COLOR = 10,
     MAX_COPIES_PER_ORACLE_ID = 4,
     CARD_BACK_URL = nil, -- Optional; leave nil to use TTS's default card back.
