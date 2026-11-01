@@ -210,6 +210,42 @@ class CatalogTests(unittest.TestCase):
             self.assertEqual(len(result["cards"]), 1)
             self.assertEqual(result["cards"][0]["color"], color)
 
+    def test_builds_small_tts_starter_pool_variants(self):
+        source = []
+        for color in ("W", "U", "B", "R", "G"):
+            for index in range(12):
+                source.append({
+                    "oracle_id": f"{color}-{index}",
+                    "name": f"{color} Card {index}",
+                    "color": color,
+                    "mana_cost": "{" + color + "}",
+                    "cmc": 1,
+                    "type_line": "Creature — Test",
+                    "oracle_text": "A test ability.",
+                    "power": "1",
+                    "toughness": "1",
+                    "printings": [{
+                        "scryfall_uri": f"https://scryfall.com/card/tst/{color}{index}",
+                        "image_uris": {"normal": f"https://example.test/{color}{index}.jpg"},
+                    }],
+                })
+        pools = build_catalog.build_tts_starter_pools(
+            source, CONFIG, variants_per_color=3
+        )
+        self.assertEqual(set(pools), {"W", "U", "B", "R", "G"})
+        for color, variants in pools.items():
+            self.assertEqual(len(variants), 3)
+            for expected_variant, pool in enumerate(variants, start=1):
+                self.assertEqual(pool["color"], color)
+                self.assertEqual(pool["variant"], expected_variant)
+                self.assertEqual(len(pool["cards"]), 10)
+                self.assertTrue(all(card["color"] == color for card in pool["cards"]))
+                from collections import Counter
+                self.assertLessEqual(
+                    max(Counter(card["oracle_id"] for card in pool["cards"]).values()),
+                    4,
+                )
+
     def test_reports_shortage_when_no_cards_available(self):
         with self.assertRaises(ValueError):
             build_catalog.generate_pool([], ("W", "U"), CONFIG, __import__("random").Random(42))
