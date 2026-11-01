@@ -6,7 +6,7 @@ This folder contains the first playable TTS scripting foundation:
 - Per-player two-color selection (exactly two of W/U/B/R/G)
 - On-demand download of only the selected 10-card color pools
 - Randomized pre-generated 10-card pool variants for each selected color
-- Spawning 20 face-up custom cards in front of the player
+- Spawning one shuffled, face-down 20-card custom deck in front of the player
 - Campaign metadata persistence through TTS `onSave` / `onLoad`
 
 The campaign record stores card instances and progression metadata independently of physical TTS objects. Object GUIDs are recorded only as convenience pointers; they are not used as the source of truth.
@@ -55,7 +55,7 @@ When a player selects a color, TTS downloads that player's assigned 10-card colo
 ## 4. Current limitations / next test pass
 
 - This is the campaign lobby and starter-pool milestone, not the complete roguelike loop.
-- The starter cards are spawned as individual custom card objects; automatic deck construction, basic-land addition, duels, coins, upgrades, and cleanup are later milestones.
+- Starter pools spawn as a single shuffled custom deck. Each contained card keeps its own face URL, rules text, and campaign metadata in its GM Notes; automatic deck construction, basic-land addition, duels, coins, upgrades, and cleanup are later milestones.
 - The initial card grid uses each player's hand transform as its anchor. Table layouts with unusual hand positions may need layout tuning.
 - Each starter pool is generated once per player record. There is not yet an admin reset or pool-regeneration command.
 - Campaign state persists card metadata, selections, coins, upgrades, and progression fields. Physical cards are saved by TTS itself; the campaign data does not depend on their GUIDs.
