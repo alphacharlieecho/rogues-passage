@@ -8,7 +8,7 @@ RP_CONFIG = {
     STARTER_POOL_BASE_URL = "https://raw.githubusercontent.com/alphacharlieecho/rogues-passage/main/card_catalog/tts_starter_pools/starter_pool_",
     CARDS_PER_COLOR = 10,
     STARTER_POOL_VARIANTS = 100,
-    CARD_BACK_URL = "https://backs.scryfall.io/normal/card_back_default.jpg", -- Standard Magic card back.
+    CARD_BACK_URL = "https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg", -- Standard Magic card back.
 }
 
 RP_COLORS = {
