@@ -5,7 +5,7 @@ This folder contains the first playable TTS scripting foundation:
 - Seated-player registration
 - Per-player two-color selection (exactly two of W/U/B/R/G)
 - On-demand download of only the selected 10-card color pools
-- Random selection of 10 cards per selected color
+- Randomized pre-generated 10-card pool variants for each selected color
 - Spawning 20 face-up custom cards in front of the player
 - Campaign metadata persistence through TTS `onSave` / `onLoad`
 
@@ -29,7 +29,7 @@ To generate a different number of variants:
 python3 card_catalog/build_catalog.py --tts-pool-variants 200
 ```
 
-Commit and push the generated `card_catalog/tts_starter_pools/` directory so the TTS client can download the files from GitHub.
+If you change the variant count, also change `STARTER_POOL_VARIANTS` in `tts_mod/Global.lua` to the same value. Commit and push the generated `card_catalog/tts_starter_pools/` directory so the TTS client can download the files from GitHub.
 
 ## 2. Host the starter pools
 
