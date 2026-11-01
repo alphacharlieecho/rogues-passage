@@ -297,7 +297,7 @@ function RP_DeckManager.spawnStarterPool(player, record)
     end
 
     local deckData = {
-        Name = "Deck",
+        Name = "DeckCustom",
         Nickname = tostring(record.name or player.steam_name or "Player") .. "'s Rogue's Passage Starter Pool",
         Description = "20-card starter pool. Individual card metadata is stored in each card's GM Notes.",
         Transform = {
