@@ -382,7 +382,7 @@ def build_tts_catalog(catalog: list[dict[str, Any]]) -> dict[str, Any]:
         representative_printing = None
         for printing in card.get("printings", []):
             image_uris = printing.get("image_uris") or {}
-            image_url = image_uris.get("normal") or image_uris.get("large") or image_uris.get("png") or image_uris.get("small")
+            image_url = image_uris.get("png") or image_uris.get("large") or image_uris.get("normal") or image_uris.get("small")
             if image_url:
                 # TTS Unity image loading is more reliable with a clean file URL.
                 image_url = image_url.split("?", 1)[0].split("#", 1)[0]
