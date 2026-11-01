@@ -542,7 +542,8 @@ def main() -> int:
 
         args.catalog_out.parent.mkdir(parents=True, exist_ok=True)
         args.report_out.parent.mkdir(parents=True, exist_ok=True)
-        args.tts_catalog_dir.mkdir(parents=True, exist_ok=True)\n        args.tts_pool_dir.mkdir(parents=True, exist_ok=True)
+        args.tts_catalog_dir.mkdir(parents=True, exist_ok=True)
+        args.tts_pool_dir.mkdir(parents=True, exist_ok=True)
         args.catalog_out.write_text(json.dumps({
             "project_name": config.get("project_name", "Rogue's Passage"),
             "schema_version": 1,
@@ -573,7 +574,9 @@ def main() -> int:
             logging.info("TTS %s starter pools written: %d variants", color, len(variants))
 
         report["tts_export_cards"] = tts_export_count
-        report["tts_catalog_files"] = len(tts_catalogs)\n        report["tts_starter_pool_files"] = starter_pool_files\n        report["tts_starter_pool_variants_per_color"] = args.tts_pool_variants
+        report["tts_catalog_files"] = len(tts_catalogs)
+        report["tts_starter_pool_files"] = starter_pool_files
+        report["tts_starter_pool_variants_per_color"] = args.tts_pool_variants
         args.report_out.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
         logging.info("Catalog written: %s (%d unique cards)", args.catalog_out, len(catalog))
