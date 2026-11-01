@@ -174,7 +174,7 @@ class CatalogTests(unittest.TestCase):
             "toughness": "1",
             "printings": [{
                 "scryfall_uri": "https://scryfall.com/card/tst/1",
-                "image_uris": {"small": "https://example.test/front.jpg"},
+                "image_uris": {"small": "https://example.test/front.jpg?cache=123#preview"},
             }],
         }
         result = build_catalog.build_tts_catalog([source])
@@ -183,6 +183,8 @@ class CatalogTests(unittest.TestCase):
         card = result["cards"][0]
         self.assertEqual(card["oracle_id"], "card-1")
         self.assertEqual(card["image_url"], "https://example.test/front.jpg")
+        self.assertNotIn("?", card["image_url"])
+        self.assertNotIn("#", card["image_url"])
         self.assertNotIn("printings", card)
 
     def test_builds_five_separate_color_catalogs(self):
