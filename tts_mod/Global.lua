@@ -365,9 +365,11 @@ function RP_processNextCatalog()
     RP_catalog_loading[color] = true
     RP_catalog_errors[color] = nil
 
-    print("[Rogue's Passage] Starting " .. rp_colorName(color) .. " catalog request (" .. url .. ").")
-    WebRequest.get(url, function(request)
-        -- Ignore callbacks from a request that already timed out.
+    print("[Rogue's Passage] DIAG 1: preparing " .. rp_colorName(color) .. " request.")
+    print("[Rogue's Passage] DIAG 2: URL = " .. url)
+
+    local callback = function(request)
+        print("[Rogue's Passage] DIAG 5: " .. rp_colorName(color) .. " WebRequest callback entered.")
         if not RP_catalog_active or RP_catalog_active.id ~= requestId then
             print("[Rogue's Passage] Ignoring late " .. rp_colorName(color) .. " catalog response.")
             return
@@ -378,9 +380,10 @@ function RP_processNextCatalog()
             print("[Rogue's Passage] " .. rp_colorName(color) .. " catalog download failed: " .. tostring(RP_catalog_errors[color]))
         else
             local response = request.text or ""
-            print("[Rogue's Passage] " .. rp_colorName(color) .. " response received (" .. tostring(#response) .. " characters).")
-            print("[Rogue's Passage] Parsing " .. rp_colorName(color) .. " catalog JSON...")
+            print("[Rogue's Passage] DIAG 6: response received (" .. tostring(#response) .. " characters).")
+            print("[Rogue's Passage] DIAG 7: starting JSON decode.")
             local ok, decoded = pcall(function() return JSON.decode(response) end)
+            print("[Rogue's Passage] DIAG 8: JSON decode returned (success=" .. tostring(ok) .. ").")
             if not ok or type(decoded) ~= "table" or type(decoded.cards) ~= "table" or decoded.color ~= color then
                 RP_catalog_errors[color] = "Color catalog JSON is invalid or has an unsupported schema."
                 print("[Rogue's Passage] " .. RP_catalog_errors[color] .. " (" .. color .. ")")
@@ -392,17 +395,34 @@ function RP_processNextCatalog()
 
         RP_catalog_loading[color] = nil
         RP_catalog_active = nil
+        print("[Rogue's Passage] DIAG 9: refreshing UI.")
+        RP_refreshUI()
+        print("[Rogue's Passage] DIAG 10: UI refresh returned.")
+        RP_processNextCatalog()
+    end
+
+    print("[Rogue's Passage] DIAG 3: calling WebRequest.get now.")
+    local ok, result = pcall(function()
+        return WebRequest.get(url, callback)
+    end)
+    print("[Rogue's Passage] DIAG 4: WebRequest.get returned (success=" .. tostring(ok) .. ").")
+    if not ok then
+        RP_catalog_loading[color] = nil
+        RP_catalog_active = nil
+        RP_catalog_errors[color] = tostring(result)
+        print("[Rogue's Passage] WebRequest.get raised an error: " .. tostring(result))
         RP_refreshUI()
         RP_processNextCatalog()
-    end)
+        return
+    end
 
-    -- If WebRequest never calls back, release the queue after 30 seconds.
+    -- Diagnostic timeout: if no callback arrives, this should identify a stalled request.
     Wait.time(function()
         if RP_catalog_active and RP_catalog_active.id == requestId then
             RP_catalog_active = nil
             RP_catalog_loading[color] = nil
             RP_catalog_errors[color] = "Catalog request timed out after 30 seconds."
-            print("[Rogue's Passage] " .. rp_colorName(color) .. " catalog request timed out.")
+            print("[Rogue's Passage] " .. rp_colorName(color) .. " catalog request timed out without a callback.")
             RP_refreshUI()
             RP_processNextCatalog()
         end
