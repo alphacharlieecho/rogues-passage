@@ -6,11 +6,6 @@ on:
         description: "Download only 10 images for testing; do not publish JSON"
         type: boolean
         default: true
-  push:
-    paths:
-      - "card_catalog/config.json"
-      - "card_catalog/build_catalog.py"
-      - "card_catalog/mirror_images.py"
 permissions:
   contents: write
 concurrency:
