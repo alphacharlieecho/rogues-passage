@@ -1,0 +1,56 @@
+name: Mirror Scryfall card images
+on:
+  workflow_dispatch:
+    inputs:
+      sample_only:
+        description: "Download only 10 images for testing; do not publish JSON"
+        type: boolean
+        default: true
+  push:
+    paths:
+      - "card_catalog/config.json"
+      - "card_catalog/build_catalog.py"
+      - "card_catalog/mirror_images.py"
+permissions:
+  contents: write
+concurrency:
+  group: scryfall-assets
+  cancel-in-progress: false
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install image dependency
+        run: python -m pip install "Pillow>=10,<13"
+      - name: Generate catalog and starter pools
+        run: python card_catalog/build_catalog.py
+      - name: Download and validate images
+        env:
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.event.repository.default_branch }}
+          SAMPLE_ONLY: ${{ inputs.sample_only }}
+        run: |
+          if [ "$SAMPLE_ONLY" = "true" ]; then
+            python card_catalog/mirror_images.py --repo "$REPOSITORY" --branch "$BRANCH" --limit 10
+          else
+            python card_catalog/mirror_images.py --repo "$REPOSITORY" --branch "$BRANCH"
+          fi
+      - name: Publish generated images and JSON
+        if: ${{ inputs.sample_only != true }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add card_catalog/images card_catalog/tts_catalogs card_catalog/tts_starter_pools
+          if git diff --cached --quiet; then
+            echo "No asset changes"
+          else
+            git commit -m "Regenerate mirrored card images and TTS pools"
+            git push
+          fi
