@@ -491,6 +491,106 @@ function RP_generateStarterPool(player, value, id)
     RP_refreshUI()
 end
 
+
+-- Deck construction is saved in the campaign, independently of physical TTS objects.
+local function rp_deckState(record)
+    if not record.deck_build then
+        record.deck_build = { selected = {}, lands = {}, page = 1 }
+        for _, card in ipairs((record.starter_pool and record.starter_pool.cards) or {}) do
+            record.deck_build.selected[card.instance_id] = true
+        end
+    end
+    return record.deck_build
+end
+
+local function rp_deckCount(record)
+    local state = rp_deckState(record)
+    local cards = 0
+    for _, card in ipairs(record.starter_pool.cards or {}) do
+        if state.selected[card.instance_id] then cards = cards + 1 end
+    end
+    local lands = 0
+    for _, count in pairs(state.lands) do lands = lands + count end
+    return cards, lands
+end
+
+function RP_deckToggleCard(player, value, id)
+    local record = RP_PlayerManager.register(player)
+    if not record or not record.starter_pool then return end
+    local state = rp_deckState(record)
+    local index = tonumber(tostring(id):match("rp_card_%w+_(%d+)"))
+    local card = index and record.starter_pool.cards[index]
+    if card then state.selected[card.instance_id] = not state.selected[card.instance_id] end
+    RP_refreshUI()
+end
+
+function RP_deckPage(player, value, id)
+    local record = RP_PlayerManager.register(player)
+    if not record or not record.starter_pool then return end
+    local state = rp_deckState(record)
+    local direction = tostring(id):match("_next$") and 1 or -1
+    local maxPage = math.max(1, math.ceil(#record.starter_pool.cards / 6))
+    state.page = math.max(1, math.min(maxPage, state.page + direction))
+    RP_refreshUI()
+end
+
+function RP_deckLand(player, value, id)
+    local record = RP_PlayerManager.register(player)
+    if not record or not record.starter_pool then return end
+    local color, operation = tostring(id):match("rp_land_%w+_([WUBRG])_(plus)")
+    if not color then color, operation = tostring(id):match("rp_land_%w+_([WUBRG])_(minus)") end
+    if not color or not rp_contains(record.selected_colors, color) then return end
+    local state = rp_deckState(record)
+    local count = state.lands[color] or 0
+    state.lands[color] = math.max(0, count + (operation == "plus" and 1 or -1))
+    RP_refreshUI()
+end
+
+function RP_deckValidate(player)
+    local record = RP_PlayerManager.register(player)
+    if not record or not record.starter_pool then return end
+    local cards, lands = rp_deckCount(record)
+    local total = cards + lands
+    local message = total >= 30 and ("Deck selection valid: " .. total .. " cards (" .. cards .. " pool + " .. lands .. " lands).")
+        or ("Deck needs " .. (30 - total) .. " more cards; currently " .. total .. "/30.")
+    print("[Rogue's Passage] " .. tostring(record.name) .. ": " .. message)
+    if player.broadcast then player.broadcast(message, total >= 30 and {0.3, 1, 0.3} or {1, 0.7, 0.2}) end
+end
+
+local function rp_deckBuilderXml(player, record)
+    local state = rp_deckState(record)
+    local cards, lands = rp_deckCount(record)
+    local rows = {}
+    local first = (state.page - 1) * 6 + 1
+    for i = first, math.min(first + 5, #record.starter_pool.cards) do
+        local card = record.starter_pool.cards[i]
+        local selected = state.selected[card.instance_id] and "[X] " or "[ ] "
+        table.insert(rows, '<Button id="rp_card_' .. player.color .. '_' .. i
+            .. '" onClick="RP_deckToggleCard" function_owner="Global" width="350" height="28" fontSize="12" text="'
+            .. rp_escapeXml(selected .. card.name) .. '" />')
+    end
+    local landRows = {}
+    for _, color in ipairs(record.selected_colors or {}) do
+        local count = state.lands[color] or 0
+        table.insert(landRows, '<HorizontalLayout spacing="4"><Text text="' .. rp_escapeXml(rp_colorName(color))
+            .. ': ' .. count .. '" fontSize="12" color="#FFFFFF" />'
+            .. '<Button id="rp_land_' .. player.color .. '_' .. color .. '_minus" onClick="RP_deckLand" function_owner="Global" text="-" width="32" height="28" />'
+            .. '<Button id="rp_land_' .. player.color .. '_' .. color .. '_plus" onClick="RP_deckLand" function_owner="Global" text="+" width="32" height="28" /></HorizontalLayout>')
+    end
+    return '<Panel id="rp_builder_' .. player.color .. '" visibility="' .. player.color
+        .. '" width="390" height="550" rectAlignment="UpperRight" offsetXY="-18 -18" color="#171923">'
+        .. '<VerticalLayout padding="12 12 12 12" spacing="5">'
+        .. '<Text text="DECK BUILDER" fontSize="20" color="#FFFFFF" />'
+        .. '<Text text="' .. (cards + lands) .. '/30 minimum (' .. cards .. ' pool + ' .. lands .. ' lands)" color="#FFFFFF" fontSize="14" />'
+        .. table.concat(rows, "")
+        .. '<HorizontalLayout spacing="4"><Button id="rp_page_' .. player.color .. '_prev" text="Previous" onClick="RP_deckPage" function_owner="Global" />'
+        .. '<Text text="Page ' .. state.page .. '" color="#FFFFFF" />'
+        .. '<Button id="rp_page_' .. player.color .. '_next" text="Next" onClick="RP_deckPage" function_owner="Global" /></HorizontalLayout>'
+        .. table.concat(landRows, "")
+        .. '<Button id="rp_validate_' .. player.color .. '" text="Validate deck selection" onClick="RP_deckValidate" function_owner="Global" />'
+        .. '</VerticalLayout></Panel>'
+end
+
 function RP_refreshUI()
     local panels = {}
     local seated = Player.getPlayers()
@@ -522,6 +622,8 @@ function RP_refreshUI()
             local disabled = poolsReady and "" or " interactable=\"false\""
             confirmButton = '<Button id="rp_confirm_' .. player.color .. '" text="Generate 24-card starter pool" onClick="RP_generateStarterPool" function_owner="Global" width="250" height="42"' .. disabled .. ' />'
         end
+
+        if record.starter_pool then table.insert(panels, rp_deckBuilderXml(player, record)) end
 
         table.insert(panels, string.format([[
             <Panel id="rp_panel_%s" visibility="%s" width="390" height="255" rectAlignment="UpperLeft" offsetXY="18 -18" color="#171923" outline="#737987" outlineSize="1">
