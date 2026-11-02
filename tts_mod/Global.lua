@@ -6,7 +6,7 @@
 
 RP_CONFIG = {
     STARTER_POOL_BASE_URL = "https://raw.githubusercontent.com/alphacharlieecho/rogues-passage/main/card_catalog/tts_starter_pools/starter_pool_",
-    CARDS_PER_COLOR = 10,
+    CARDS_PER_COLOR = 12,
     STARTER_POOL_VARIANTS = 100,
     CARD_BACK_URL = "https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg", -- Standard Magic card back.
 }
@@ -68,7 +68,7 @@ function RP_PlayerManager.register(player)
         selected_colors = {},
         selected_pool_variants = {},
         starter_pool = nil,
-        coins = 0,
+        coins = 10,
         upgrades = {},
         progression = {},
     }
@@ -301,7 +301,7 @@ function RP_DeckManager.spawnStarterPool(player, record)
     local deckData = {
         Name = "DeckCustom",
         Nickname = tostring(record.name or player.steam_name or "Player") .. "'s Rogue's Passage Starter Pool",
-        Description = "20-card starter pool. Individual card metadata is stored in each card's GM Notes.",
+        Description = "24-card starter pool. Individual card metadata is stored in each card's GM Notes.",
         Transform = {
             posX = position.x, posY = position.y, posZ = position.z,
             rotX = rotation[1], rotY = rotation[2], rotZ = rotation[3],
@@ -324,7 +324,7 @@ function RP_DeckManager.spawnStarterPool(player, record)
                 end
                 record.starter_pool.deck_guid = object.getGUID()
                 object.setName(tostring(record.name or player.steam_name or "Player") .. "'s Starter Pool")
-                object.setDescription("20-card Rogue's Passage starter pool.")
+                object.setDescription("24-card Rogue's Passage starter pool.")
                 print("[Rogue's Passage] Spawned starter deck with " .. tostring(#cards)
                     .. " cards (GUID " .. tostring(record.starter_pool.deck_guid) .. ").")
             end,
@@ -377,7 +377,7 @@ function RP_DeckManager.generateStarterPool(player)
         cards = pool,
     }
     RP_DeckManager.spawnStarterPool(player, record)
-    return true, "Your 20-card starter pool has been generated."
+    return true, "Your 24-card starter pool has been generated."
 end
 
 function RP_loadPlayerColorPool(player, color)
@@ -520,7 +520,7 @@ function RP_refreshUI()
                 if not playerPools[color] then poolsReady = false end
             end
             local disabled = poolsReady and "" or " interactable=\"false\""
-            confirmButton = '<Button id="rp_confirm_' .. player.color .. '" text="Generate 20-card starter pool" onClick="RP_generateStarterPool" function_owner="Global" width="250" height="42"' .. disabled .. ' />'
+            confirmButton = '<Button id="rp_confirm_' .. player.color .. '" text="Generate 24-card starter pool" onClick="RP_generateStarterPool" function_owner="Global" width="250" height="42"' .. disabled .. ' />'
         end
 
         table.insert(panels, string.format([[
