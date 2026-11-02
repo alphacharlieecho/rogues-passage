@@ -174,6 +174,9 @@ def get_card_colors(card: dict[str, Any]) -> list[str]:
     activated abilities, kicker, flashback, and similar text do not disqualify
     an otherwise single-color card.
     """
+    colors = card.get("color_identity")
+    if colors is not None:
+        return sorted(colors)
     colors = card.get("colors")
     if colors is not None:
         return list(colors)
@@ -239,11 +242,11 @@ def card_is_eligible_printing(card: dict[str, Any], config: dict[str, Any]) -> t
         or "Token" in str(card.get("type_line", ""))
     ):
         return False, "token"
-    if card_is_land(card):
-        return False, "land"
     colors = get_card_colors(card)
-    if len(colors) != 1 or colors[0] not in config.get("eligible_colors", list(COLOR_NAMES)):
-        return False, "not_single_chosen_color"
+    if card_is_land(card) and "Basic" in str(card.get("type_line", "")).split("—")[0]:
+        return False, "basic_land"
+    if any(c not in COLOR_NAMES for c in colors):
+        return False, "invalid_color_identity"
     text = get_oracle_text(card)
     for pattern in config.get("excluded_oracle_text_regex", []):
         if re.search(pattern, text):
@@ -278,10 +281,12 @@ def compact_printing(card: dict[str, Any]) -> dict[str, Any]:
 def compact_card(card: dict[str, Any], printings: list[dict[str, Any]]) -> dict[str, Any]:
     colors = get_card_colors(card)
     faces = card.get("card_faces") or []
+    category = "nonbasic_lands" if card_is_land(card) and "Basic" not in str(card.get("type_line", "")).split("—")[0] else ("basic_lands" if card_is_land(card) else (colors[0] if len(colors) == 1 else ("colorless" if not colors else "multicolor")))
     return {
         "oracle_id": card["oracle_id"],
         "name": card["name"],
-        "color": colors[0],
+        "color": colors[0] if len(colors) == 1 else None,
+        "category": category,
         "mana_cost": card.get("mana_cost") or (faces[0].get("mana_cost") if faces else ""),
         "cmc": card.get("cmc", 0),
         "type_line": card.get("type_line") or (faces[0].get("type_line") if faces else ""),
@@ -318,7 +323,17 @@ def build_catalog(cards: Iterable[dict[str, Any]], config: dict[str, Any]) -> tu
         compact_card(card, printings_by_oracle[oid])
         for oid, card in by_oracle.items()
     ]
-    catalog.sort(key=lambda c: (c["color"], c["name"].casefold()))
+    catalog.sort(key=lambda c: (c["category"], c["name"].casefold()))
+    quotas = config.get("catalog_category_quotas")
+    if quotas:
+        rng = random.Random(config.get("random_seed", 20261028))
+        selected = []
+        for category, quota in quotas.items():
+            candidates = sorted((c for c in catalog if c["category"] == category), key=lambda c: c["oracle_id"])
+            if len(candidates) < quota:
+                raise ValueError(f"Insufficient {category} cards: {len(candidates)} available, {quota} requested")
+            selected.extend(rng.sample(candidates, quota))
+        catalog = sorted(selected, key=lambda c: (c["category"], c["name"].casefold()))
     future_printings = [
         printing
         for printings in printings_by_oracle.values()
@@ -338,6 +353,7 @@ def build_catalog(cards: Iterable[dict[str, Any]], config: dict[str, Any]) -> tu
         "cards_with_only_future_printings": future_only_cards,
         "printings_examined": printing_count,
         "unique_eligible_cards": len(catalog),
+        "selected_by_category": dict(Counter(c["category"] for c in catalog)),
         "eligible_by_color": {
             color: sum(1 for c in catalog if c["color"] == color)
             for color in config.get("eligible_colors", list(COLOR_NAMES))
