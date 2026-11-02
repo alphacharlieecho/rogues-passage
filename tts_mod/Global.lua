@@ -591,6 +591,67 @@ local function rp_deckBuilderXml(player, record)
         .. '</VerticalLayout></Panel>'
 end
 
+
+-- Seat-relative table guides. Both seats use identical local coordinates;
+-- the hand transform's yaw rotates each player's layout into their own view.
+RP_TableManager = {}
+RP_table_guides = {}
+RP_TABLE_ZONES = {
+    { key = "creatures", label = "CREATURES / PERMANENTS", x = -1.0, forward = 10.0 },
+    { key = "lands", label = "LANDS", x = -1.0, forward = 5.5 },
+    { key = "library", label = "LIBRARY", x = 7.0, forward = 3.0 },
+    { key = "graveyard", label = "GRAVEYARD", x = 7.0, forward = 6.5 },
+    { key = "exile", label = "EXILE", x = 7.0, forward = 10.0 },
+}
+
+local function rp_seatPosition(hand, localX, forward)
+    local yaw = math.rad((hand.rotation and hand.rotation.y) or 0)
+    -- TTS local right vector and inward vector based on the hand orientation.
+    return {
+        x = hand.position.x + localX * math.cos(yaw) + forward * math.sin(yaw),
+        y = 1.12,
+        z = hand.position.z - localX * math.sin(yaw) + forward * math.cos(yaw),
+    }
+end
+
+function RP_TableManager.createGuides(player)
+    local hand = player and player.getHandTransform()
+    if not hand or not hand.position then
+        return false, "Player must have an active hand zone."
+    end
+    local seat = player.color
+    -- Idempotent: remove the previous guides for this seat before respawning.
+    for _, guid in ipairs(RP_table_guides[seat] or {}) do
+        local object = getObjectFromGUID(guid)
+        if object then object.destruct() end
+    end
+    RP_table_guides[seat] = {}
+    for _, zone in ipairs(RP_TABLE_ZONES) do
+        local position = rp_seatPosition(hand, zone.x, zone.forward)
+        local object = spawnObject({
+            type = "3DText",
+            position = position,
+            rotation = { 90, (hand.rotation and hand.rotation.y) or 0, 0 },
+            sound = false,
+        })
+        if object then
+            object.setName("RP " .. seat .. " " .. zone.key)
+            object.TextTool.setValue(zone.label)
+            object.TextTool.setFontSize(36)
+            object.TextTool.setColor({0.73, 0.85, 0.77})
+            object.setLock(true)
+            table.insert(RP_table_guides[seat], object.getGUID())
+        end
+    end
+    return true, "Created " .. #RP_TABLE_ZONES .. " table guides for " .. seat .. "."
+end
+
+function RP_createTableGuides(player)
+    local ok, message = RP_TableManager.createGuides(player)
+    print("[Rogue's Passage] " .. message)
+    if player.broadcast then player.broadcast(message, ok and {0.3, 1, 0.3} or {1, 0.7, 0.2}) end
+end
+
 function RP_refreshUI()
     local panels = {}
     local seated = Player.getPlayers()
@@ -626,7 +687,7 @@ function RP_refreshUI()
         if record.starter_pool then table.insert(panels, rp_deckBuilderXml(player, record)) end
 
         table.insert(panels, string.format([[
-            <Panel id="rp_panel_%s" visibility="%s" width="390" height="255" rectAlignment="UpperLeft" offsetXY="18 -18" color="#171923" outline="#737987" outlineSize="1">
+            <Panel id="rp_panel_%s" visibility="%s" width="390" height="295" rectAlignment="UpperLeft" offsetXY="18 -18" color="#171923" outline="#737987" outlineSize="1">
                 <VerticalLayout padding="12 12 12 12" spacing="6">
                     <Text text="ROGUE'S PASSAGE" fontSize="20" color="#FFFFFF" alignment="MiddleCenter" />
                     <Text text="%s — %s" fontSize="14" color="#D7DCE5" alignment="MiddleCenter" />
@@ -634,7 +695,7 @@ function RP_refreshUI()
                     <HorizontalLayout spacing="5">%s</HorizontalLayout>
                     <Text text="%s" fontSize="13" color="#FFFFFF" alignment="MiddleCenter" />
                     %s
-                    <Text text="Starter pools: %s" fontSize="10" color="#AAB2C0" alignment="MiddleCenter" />
+                    <Button text="Create / Reset Play Area Guides" onClick="RP_createTableGuides" function_owner="Global" width="280" height="34" />\n                    <Text text="Starter pools: %s" fontSize="10" color="#AAB2C0" alignment="MiddleCenter" />
                 </VerticalLayout>
             </Panel>
         ]], player.color, player.color, rp_escapeXml(record.name), player.color,
