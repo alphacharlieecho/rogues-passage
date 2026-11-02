@@ -17,7 +17,7 @@
     "R",
     "G"
   ],
-  "starter_cards_per_color": 10,
+  "starter_cards_per_color": 12,
   "max_copies_per_card_in_pool": 4,
   "require_paper_game": true,
   "exclude_tokens": true,
@@ -50,13 +50,23 @@
     "(?i)\\bsticker\\b",
     "(?i)\\bsubgame\\b"
   ],
-  "random_seed": null,
+  "random_seed": 20261028,
   "excluded_set_codes": [
     "ugl",
     "unh",
     "ust",
     "unf"
   ],
-  "color_eligibility_mode": "card_color",
-  "allow_future_printings": true
+  "color_eligibility_mode": "color_identity",
+  "allow_future_printings": true,
+  "catalog_category_quotas": {
+    "W": 150,
+    "U": 150,
+    "B": 150,
+    "R": 150,
+    "G": 150,
+    "multicolor": 100,
+    "colorless": 75,
+    "nonbasic_lands": 75
+  }
 }
