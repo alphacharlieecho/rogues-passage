@@ -522,10 +522,27 @@ function RP_TableManager.createGuides(player)
         return false, "Player must have an active hand zone."
     end
     local seat = player.color
-    -- Reuse existing guides across save/load; do not duplicate them.\n    local existing = {}\n    for _, object in ipairs(getAllObjects()) do\n        local name = object.getName()\n        if name and name:sub(1, #("RP " .. seat .. " ")) == "RP " .. seat .. " " then\n            existing[name] = object\n        end\n    end\n    RP_table_guides[seat] = {}
+    -- Reuse existing guides across save/load; do not duplicate them.
+    local existing = {}
+    for _, object in ipairs(getAllObjects()) do
+        local name = object.getName()
+        if name and name:sub(1, #("RP " .. seat .. " ")) == "RP " .. seat .. " " then
+            existing[name] = object
+        end
+    end
+    RP_table_guides[seat] = {}
     for _, zone in ipairs(RP_TABLE_ZONES) do
         local position = rp_seatPosition(hand, zone.x, zone.forward)
-        local name = "RP " .. seat .. " " .. zone.key\n        local object = existing[name]\n        if not object then\n            object = spawnObject({\n                type = "3DText",\n                position = position,\n                rotation = { 90, (hand.rotation and hand.rotation.y) or 0, 0 },\n                sound = false,\n            })\n        end
+        local name = "RP " .. seat .. " " .. zone.key
+        local object = existing[name]
+        if not object then
+            object = spawnObject({
+                type = "3DText",
+                position = position,
+                rotation = { 90, (hand.rotation and hand.rotation.y) or 0, 0 },
+                sound = false,
+            })
+        end
         if object then
             object.setName(name)
             object.TextTool.setValue(zone.label)
@@ -585,7 +602,8 @@ function RP_refreshUI()
                     <HorizontalLayout spacing="5">%s</HorizontalLayout>
                     <Text text="%s" fontSize="13" color="#FFFFFF" alignment="MiddleCenter" />
                     %s
-                    <Button text="Create / Reset Play Area Guides" onClick="RP_createTableGuides" function_owner="Global" width="280" height="34" />\n                    <Text text="Starter pools: %s" fontSize="10" color="#AAB2C0" alignment="MiddleCenter" />
+                    <Button text="Create / Reset Play Area Guides" onClick="RP_createTableGuides" function_owner="Global" width="280" height="34" />
+                    <Text text="Starter pools: %s" fontSize="10" color="#AAB2C0" alignment="MiddleCenter" />
                 </VerticalLayout>
             </Panel>
         ]], player.color, player.color, rp_escapeXml(record.name), player.color,
@@ -597,10 +615,17 @@ function RP_refreshUI()
                     ((#selected == 2 and playerPools[selected[1]] and playerPools[selected[2]]) and "ready" or "loading")))))
     end
 
-    UI.setXml('<Panel id="rp_root">' .. table.concat(panels, "\n") .. '</Panel>')
+    UI.setXml('<Panel id="rp_root">' .. table.concat(panels, "
+") .. '</Panel>')
 end
 
-local function rp_autoCreateGuides()\n    for _, player in ipairs(Player.getPlayers()) do\n        RP_TableManager.createGuides(player)\n    end\nend\n\nfunction onLoad(saved_data)
+local function rp_autoCreateGuides()
+    for _, player in ipairs(Player.getPlayers()) do
+        RP_TableManager.createGuides(player)
+    end
+end
+
+function onLoad(saved_data)
     if saved_data and saved_data ~= "" then
         local ok, saved = pcall(function() return JSON.decode(saved_data) end)
         if ok and type(saved) == "table" and type(saved.campaign) == "table" then
@@ -623,7 +648,11 @@ local function rp_autoCreateGuides()\n    for _, player in ipairs(Player.getPlay
             RP_loadPlayerColorPool(player, color)
         end
     end
-    RP_refreshUI()\n    Wait.frames(rp_autoCreateGuides, 2)\nend\n\nfunction onSave()
+    RP_refreshUI()
+    Wait.frames(rp_autoCreateGuides, 2)
+end
+
+function onSave()
     return JSON.encode({
         schema_version = 1,
         campaign = RP_campaign,
@@ -638,7 +667,12 @@ function onPlayerConnect(player)
     RP_refreshUI()
 end
 
-function onPlayerChangeColor(player_color)\n    local player = Player[player_color]\n    if player then RP_PlayerManager.register(player) end\n    RP_refreshUI()\n    Wait.frames(rp_autoCreateGuides, 2)\nend
+function onPlayerChangeColor(player_color)
+    local player = Player[player_color]
+    if player then RP_PlayerManager.register(player) end
+    RP_refreshUI()
+    Wait.frames(rp_autoCreateGuides, 2)
+end
 
 function onPlayerDisconnect(player)
     RP_refreshUI()
