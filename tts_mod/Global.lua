@@ -655,8 +655,8 @@ function RP_createLandDispensers()
                 position = {0, 0.25, 0},
                 rotation = {0, 0, 0},
                 width = 950, height = 500, font_size = 170,
-                color = {0.18, 0.2, 0.24, 1},
-                font_color = {1, 1, 1, 1},
+                color = land.name == "Plains" and {249/255, 250/255, 244/255, 1} or {0.18, 0.2, 0.24, 1},
+                font_color = land.name == "Plains" and {0.12, 0.14, 0.16, 1} or {1, 1, 1, 1},
             })
         end
     end
