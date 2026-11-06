@@ -561,6 +561,57 @@ function RP_refreshUI()
     end
 end
 
+-- Shared campaign station: coin balance and shop preview only.
+-- Purchases stay disabled until shop pricing and inventory rules are agreed.
+RP_SHOP_STATION_NAME = "RP Campaign Shop"
+
+function RP_showShop(object, playerColor, altClick)
+    local player = Player[playerColor]
+    if not player then return end
+    local record = RP_PlayerManager.register(player)
+    local coins = tonumber(record and record.coins) or 10
+    broadcastToColor(
+        "Rogue's Passage | Coins: " .. tostring(coins) ..
+        " | Card shop: coming next. Purchases are not enabled yet.",
+        playerColor, {0.7, 0.9, 1}
+    )
+end
+
+function RP_createShopStation()
+    local station = nil
+    for _, object in ipairs(getAllObjects()) do
+        if object.getName() == RP_SHOP_STATION_NAME then
+            station = object
+            break
+        end
+    end
+    if not station then
+        station = spawnObject({
+            type = "BlockSquare",
+            position = {x = 0, y = 1.5, z = 0},
+            scale = {x = 3.5, y = 0.4, z = 2.4},
+            sound = false,
+        })
+    end
+    if not station then
+        print("[Rogue's Passage] Could not create the campaign shop station.")
+        return
+    end
+    station.setName(RP_SHOP_STATION_NAME)
+    station.setDescription("Click to view your saved coin balance and shop status. No purchases yet.")
+    station.setLock(true)
+    station.clearButtons()
+    station.createButton({
+        label = "ROGUE'S PASSAGE SHOP\\nView Coins",
+        click_function = "RP_showShop",
+        function_owner = Global,
+        position = {0, 0.25, 0},
+        width = 1350, height = 750, font_size = 160,
+        color = {0.16, 0.20, 0.26, 1},
+        font_color = {1, 1, 1, 1},
+    })
+end
+
 function onLoad(saved_data)
     if saved_data and saved_data ~= "" then
         local ok, saved = pcall(function() return JSON.decode(saved_data) end)
@@ -585,6 +636,7 @@ function onLoad(saved_data)
         end
     end
     RP_refreshUI()
+    Wait.frames(RP_createShopStation, 3)
 end
 
 function onSave()
