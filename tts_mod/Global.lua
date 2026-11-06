@@ -486,6 +486,8 @@ end
 function RP_generateStarterPool(player, value, id)
     local ok, message = RP_DeckManager.generateStarterPool(player)
     if ok then
+        -- Hide the setup panel immediately, before rebuilding the remaining UI.
+        UI.hide("rp_panel_" .. player.color)
         broadcastToColor(message, player.color, { 0.35, 1, 0.45 })
     else
         broadcastToColor(message, player.color, { 1, 0.35, 0.25 })
@@ -550,7 +552,13 @@ function RP_refreshUI()
         end -- hide setup for players with generated pools
     end
 
-    UI.setXml('<Panel id="rp_root">' .. table.concat(panels, "\n") .. '</Panel>')
+    -- Remove the entire setup UI when every seated player has generated a pool.
+    -- An empty root can leave stale panels visible in some TTS sessions.
+    if #panels == 0 then
+        UI.setXml("")
+    else
+        UI.setXml('<Panel id="rp_root">' .. table.concat(panels, "\n") .. '</Panel>')
+    end
 end
 
 function onLoad(saved_data)
