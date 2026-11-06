@@ -494,72 +494,6 @@ function RP_generateStarterPool(player, value, id)
 end
 
 
--- Seat-relative table guides. Both seats use identical local coordinates;
--- the hand transform's yaw rotates each player's layout into their own view.
-RP_TableManager = {}
-RP_table_guides = {}
-RP_TABLE_ZONES = {
-    { key = "creatures", label = "CREATURES / PERMANENTS", x = -1.0, forward = 10.0 },
-    { key = "lands", label = "LANDS", x = -1.0, forward = 5.5 },
-    { key = "library", label = "LIBRARY", x = 7.0, forward = 3.0 },
-    { key = "graveyard", label = "GRAVEYARD", x = 7.0, forward = 6.5 },
-    { key = "exile", label = "EXILE", x = 7.0, forward = 10.0 },
-}
-
-local function rp_seatPosition(hand, localX, forward)
-    local yaw = math.rad((hand.rotation and hand.rotation.y) or 0)
-    -- TTS local right vector and inward vector based on the hand orientation.
-    return {
-        x = hand.position.x + localX * math.cos(yaw) + forward * math.sin(yaw),
-        y = 1.12,
-        z = hand.position.z - localX * math.sin(yaw) + forward * math.cos(yaw),
-    }
-end
-
-function RP_TableManager.createGuides(player)
-    local hand = player and player.getHandTransform()
-    if not hand or not hand.position then
-        return false, "Player must have an active hand zone."
-    end
-    local seat = player.color
-    -- Reuse existing guides across save/load; do not duplicate them.
-    local existing = {}
-    for _, object in ipairs(getAllObjects()) do
-        local name = object.getName()
-        if name and name:sub(1, #("RP " .. seat .. " ")) == "RP " .. seat .. " " then
-            existing[name] = object
-        end
-    end
-    RP_table_guides[seat] = {}
-    for _, zone in ipairs(RP_TABLE_ZONES) do
-        local position = rp_seatPosition(hand, zone.x, zone.forward)
-        local name = "RP " .. seat .. " " .. zone.key
-        local object = existing[name]
-        if not object then
-            object = spawnObject({
-                type = "3DText",
-                position = position,
-                rotation = { 90, (hand.rotation and hand.rotation.y) or 0, 0 },
-                sound = false,
-            })
-        end
-        if object then
-            object.setName(name)
-            object.TextTool.setValue(zone.label)
-            object.TextTool.setFontSize(36)
-            object.setLock(true)
-            table.insert(RP_table_guides[seat], object.getGUID())
-        end
-    end
-    return true, "Created " .. #RP_TABLE_ZONES .. " table guides for " .. seat .. "."
-end
-
-function RP_createTableGuides(player)
-    local ok, message = RP_TableManager.createGuides(player)
-    print("[Rogue's Passage] " .. message)
-    if player.broadcast then player.broadcast(message, ok and {0.3, 1, 0.3} or {1, 0.7, 0.2}) end
-end
-
 function RP_refreshUI()
     local panels = {}
     local seated = Player.getPlayers()
@@ -602,7 +536,6 @@ function RP_refreshUI()
                     <HorizontalLayout spacing="5">%s</HorizontalLayout>
                     <Text text="%s" fontSize="13" color="#FFFFFF" alignment="MiddleCenter" />
                     %s
-                    <Button text="Create / Reset Play Area Guides" onClick="RP_createTableGuides" function_owner="Global" width="280" height="34" />
                     <Text text="Starter pools: %s" fontSize="10" color="#AAB2C0" alignment="MiddleCenter" />
                 </VerticalLayout>
             </Panel>
@@ -616,12 +549,6 @@ function RP_refreshUI()
     end
 
     UI.setXml('<Panel id="rp_root">' .. table.concat(panels, "\n") .. '</Panel>')
-end
-
-local function rp_autoCreateGuides()
-    for _, player in ipairs(Player.getPlayers()) do
-        RP_TableManager.createGuides(player)
-    end
 end
 
 function onLoad(saved_data)
@@ -648,7 +575,6 @@ function onLoad(saved_data)
         end
     end
     RP_refreshUI()
-    Wait.frames(rp_autoCreateGuides, 2)
 end
 
 function onSave()
@@ -670,7 +596,6 @@ function onPlayerChangeColor(player_color)
     local player = Player[player_color]
     if player then RP_PlayerManager.register(player) end
     RP_refreshUI()
-    Wait.frames(rp_autoCreateGuides, 2)
 end
 
 function onPlayerDisconnect(player)
