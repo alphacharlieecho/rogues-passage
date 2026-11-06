@@ -567,41 +567,75 @@ RP_SHOP_STATION_NAME = "RP Campaign Shop"
 
 -- Read-only shop preview. Inventory is drawn from the existing mirrored
 -- starter-pool shards as a temporary source until dedicated shop shards exist.
-RP_shop_preview = {}
+-- Shared, persistent inventory backed by published TTS catalog files.
+-- Each mono-color catalog has 150 cards; other categories are not yet published.
 RP_shop_loading = false
 RP_shop_error = nil
+RP_shop_supply = {}
 RP_SHOP_PREVIEW_COUNT = 5
+RP_SHOP_CATALOG_BASE_URL = "https://raw.githubusercontent.com/alphacharlieecho/rogues-passage/main/card_catalog/tts_catalogs/tts_catalog_"
+
+local function RP_chooseShopInventory()
+    RP_campaign.shop = RP_campaign.shop or {}
+    if type(RP_campaign.shop.inventory) == "table" then return end
+    local candidates = {}
+    for _, card in ipairs(RP_shop_supply) do
+        if card.oracle_id and not (RP_campaign.shop.removed or {})[card.oracle_id] then
+            table.insert(candidates, card)
+        end
+    end
+    -- Partial Fisher-Yates: draw unique entries without replacement.
+    local count = math.min(RP_SHOP_PREVIEW_COUNT, #candidates)
+    local chosen = {}
+    for i = 1, count do
+        local j = math.random(i, #candidates)
+        candidates[i], candidates[j] = candidates[j], candidates[i]
+        table.insert(chosen, candidates[i])
+    end
+    RP_campaign.shop.inventory = chosen
+end
 
 function RP_loadShopPreview()
+    RP_campaign.shop = RP_campaign.shop or {}
+    -- Already selected inventory survives a save/load without rerolling.
+    if type(RP_campaign.shop.inventory) == "table" then return end
     if RP_shop_loading then return end
     RP_shop_loading = true
     RP_shop_error = nil
-    RP_shop_preview = {}
+    RP_shop_supply = {}
     local remaining = #RP_COLORS
+    local failed = 0
     for _, color in ipairs(RP_COLORS) do
-        local variant = math.random(1, RP_CONFIG.STARTER_POOL_VARIANTS)
-        local url = RP_CONFIG.STARTER_POOL_BASE_URL .. color.code .. "_" .. string.format("%03d", variant) .. ".json"
+        local url = RP_SHOP_CATALOG_BASE_URL .. color.code .. ".json"
         WebRequest.get(url, function(request)
             if not request.is_error then
                 local ok, data = pcall(function() return JSON.decode(request.text or "") end)
-                if ok and data and type(data.cards) == "table" and #data.cards > 0 then
-                    local card = data.cards[math.random(#data.cards)]
-                    table.insert(RP_shop_preview, {
-                        name = card.name, mana_cost = card.mana_cost or "",
-                        type_line = card.type_line or "", scryfall_uri = card.scryfall_uri or "",
-                        color = color.code,
-                    })
+                if ok and type(data) == "table" and type(data.cards) == "table" then
+                    for _, card in ipairs(data.cards) do
+                        if card.oracle_id and card.name then
+                            table.insert(RP_shop_supply, {
+                                oracle_id = card.oracle_id, name = card.name,
+                                mana_cost = card.mana_cost or "", type_line = card.type_line or "",
+                                scryfall_uri = card.scryfall_uri or "", image_url = card.image_url or "",
+                                color = color.code,
+                            })
+                        end
+                    end
                 else
-                    RP_shop_error = "One or more preview sources could not be decoded."
+                    failed = failed + 1
                 end
             else
-                RP_shop_error = "One or more preview sources could not be downloaded."
+                failed = failed + 1
             end
             remaining = remaining - 1
             if remaining == 0 then
                 RP_shop_loading = false
-                table.sort(RP_shop_preview, function(a, b) return a.color < b.color end)
-                print("[Rogue's Passage] Shop preview ready: " .. tostring(#RP_shop_preview) .. " cards.")
+                if failed > 0 then
+                    RP_shop_error = tostring(failed) .. " shop catalog files failed to load; inventory was not generated."
+                else
+                    RP_chooseShopInventory()
+                    print("[Rogue's Passage] Shared shop inventory generated from " .. tostring(#RP_shop_supply) .. " published cards.")
+                end
             end
         end)
     end
@@ -617,12 +651,13 @@ function RP_showShop(object, playerColor, altClick)
         broadcastToColor("Shop preview is loading. Click again shortly.", playerColor, {1, 0.8, 0.3})
         return
     end
-    if #RP_shop_preview == 0 then
+    local inventory = RP_campaign.shop and RP_campaign.shop.inventory or nil
+    if type(inventory) ~= "table" or #inventory == 0 then
         broadcastToColor(RP_shop_error or "Shop preview unavailable. Click again after reloading the table.", playerColor, {1, 0.6, 0.4})
         return
     end
-    broadcastToColor("PREVIEW ONLY - no prices or purchases yet. Inventory uses temporary starter-pool sources.", playerColor, {1, 0.8, 0.3})
-    for index, card in ipairs(RP_shop_preview) do
+    broadcastToColor("SHARED INVENTORY - preview only; purchases and refresh are disabled.", playerColor, {1, 0.8, 0.3})
+    for index, card in ipairs(inventory) do
         broadcastToColor(tostring(index) .. ". [" .. card.color .. "] " .. tostring(card.name) ..
             " " .. tostring(card.mana_cost) .. " - " .. tostring(card.type_line) ..
             " | " .. tostring(card.scryfall_uri), playerColor, {0.9, 0.9, 0.9})
