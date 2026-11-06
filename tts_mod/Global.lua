@@ -561,107 +561,6 @@ function RP_refreshUI()
     end
 end
 
--- Physical basic-land dispensers. Click a labeled block to spawn one land.
--- These are deliberately independent of the starter-pool setup UI.
-RP_LAND_TYPES = {
-    { name = "Plains", code = "W" }, { name = "Island", code = "U" },
-    { name = "Swamp", code = "B" }, { name = "Mountain", code = "R" },
-    { name = "Forest", code = "G" },
-}
-RP_land_images = {}
-RP_land_requests = {}
-
-function RP_requestLandImage(landName)
-    if RP_land_images[landName] or RP_land_requests[landName] then return end
-    RP_land_requests[landName] = true
-    local url = "https://api.scryfall.com/cards/named?exact=" .. landName
-    WebRequest.get(url, function(request)
-        RP_land_requests[landName] = nil
-        if request.is_error then
-            print("[Rogue's Passage] Could not load " .. landName .. " image: " .. tostring(request.error))
-            return
-        end
-        local ok, card = pcall(function() return JSON.decode(request.text) end)
-        if ok and card and card.image_uris and card.image_uris.normal then
-            RP_land_images[landName] = card.image_uris.normal
-        else
-            print("[Rogue's Passage] No usable image for " .. landName)
-        end
-    end)
-end
-
-function RP_takeBasicLand(object, playerColor, altClick)
-    local landName = object.getVar("rp_land_name")
-    if not landName then return end
-    local image = RP_land_images[landName]
-    if not image then
-        RP_requestLandImage(landName)
-        broadcastToColor("Loading " .. landName .. " artwork. Try again in a moment.", playerColor, {1, 0.8, 0.3})
-        return
-    end
-    local player = Player[playerColor]
-    local hand = player and player.getHandTransform()
-    local pos = object.getPosition()
-    local spawnPos = {x = pos.x, y = pos.y + 2.5, z = pos.z - 2}
-    local rotation = {0, 180, 0}
-    if hand and hand.position then
-        local yaw = math.rad((hand.rotation and hand.rotation.y) or 0)
-        spawnPos = {
-            x = hand.position.x + 5 * math.sin(yaw),
-            y = 1.6,
-            z = hand.position.z + 5 * math.cos(yaw),
-        }
-        rotation = {0, (((hand.rotation and hand.rotation.y) or 0) + 180) % 360, 0}
-    end
-    local card = spawnObject({type = "CardCustom", position = spawnPos, rotation = rotation, sound = false})
-    if card then
-        card.setCustomObject({face = image, back = RP_CONFIG.CARD_BACK_URL, width = 1, height = 1, number = 1})
-        card.setName(landName)
-        card.setDescription("Basic Land — " .. landName .. ". Unlimited copies available from dispenser.")
-    end
-end
-
-function RP_createLandDispensers()
-    -- Fixed shared row away from the starter-deck spawn position.
-    -- Reuse named blocks after save/load rather than creating duplicates.
-    local existing = {}
-    for _, object in ipairs(getAllObjects()) do
-        local name = object.getName()
-        if name and name:sub(1, #"RP Land Dispenser ") == "RP Land Dispenser " then
-            existing[name] = object
-        end
-    end
-    for index, land in ipairs(RP_LAND_TYPES) do
-        RP_requestLandImage(land.name)
-        local name = "RP Land Dispenser " .. land.name
-        local dispenser = existing[name]
-        if not dispenser then
-            dispenser = spawnObject({
-                type = "BlockSquare",
-                position = {x = -8 + (index - 1) * 4, y = 1.5, z = 0},
-                scale = {x = 2.8, y = 0.35, z = 2},
-                sound = false,
-            })
-        end
-        if dispenser then
-            dispenser.setName(name)
-            dispenser.setLock(true)
-            dispenser.setVar("rp_land_name", land.name)
-            dispenser.clearButtons()
-            dispenser.createButton({
-                label = land.name .. " / Take land",
-                click_function = "RP_takeBasicLand",
-                function_owner = Global,
-                position = {0, 0.25, 0},
-                rotation = {0, 0, 0},
-                width = 950, height = 500, font_size = 170,
-                color = land.name == "Plains" and {249/255, 250/255, 244/255, 1} or {0.18, 0.2, 0.24, 1},
-                font_color = land.name == "Plains" and {0.12, 0.14, 0.16, 1} or {1, 1, 1, 1},
-            })
-        end
-    end
-end
-
 function onLoad(saved_data)
     if saved_data and saved_data ~= "" then
         local ok, saved = pcall(function() return JSON.decode(saved_data) end)
@@ -686,7 +585,6 @@ function onLoad(saved_data)
         end
     end
     RP_refreshUI()
-    Wait.frames(RP_createLandDispensers, 3)
 end
 
 function onSave()
