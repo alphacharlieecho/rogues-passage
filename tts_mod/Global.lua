@@ -605,7 +605,9 @@ function RP_createShopStation()
         label = "SHOP - View Coins",
         click_function = "RP_showShop",
         function_owner = Global,
-        position = {0, 0.24, 0},
+        -- Button coordinates are local to the block; the top surface is y=0.5.
+        -- Keep the button above the surface so the block cannot obscure it.
+        position = {0, 0.65, 0},
         width = 1250, height = 420, font_size = 130,
         color = {0.16, 0.20, 0.26, 1},
         font_color = {1, 1, 1, 1},
