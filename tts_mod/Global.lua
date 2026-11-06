@@ -565,16 +565,68 @@ end
 -- Purchases stay disabled until shop pricing and inventory rules are agreed.
 RP_SHOP_STATION_NAME = "RP Campaign Shop"
 
+-- Read-only shop preview. Inventory is drawn from the existing mirrored
+-- starter-pool shards as a temporary source until dedicated shop shards exist.
+RP_shop_preview = {}
+RP_shop_loading = false
+RP_shop_error = nil
+RP_SHOP_PREVIEW_COUNT = 5
+
+function RP_loadShopPreview()
+    if RP_shop_loading then return end
+    RP_shop_loading = true
+    RP_shop_error = nil
+    RP_shop_preview = {}
+    local remaining = #RP_COLORS
+    for _, color in ipairs(RP_COLORS) do
+        local variant = math.random(1, RP_CONFIG.STARTER_POOL_VARIANTS)
+        local url = RP_CONFIG.STARTER_POOL_BASE_URL .. color.code .. "_" .. string.format("%03d", variant) .. ".json"
+        WebRequest.get(url, function(request)
+            if not request.is_error then
+                local ok, data = pcall(function() return JSON.decode(request.text or "") end)
+                if ok and data and type(data.cards) == "table" and #data.cards > 0 then
+                    local card = data.cards[math.random(#data.cards)]
+                    table.insert(RP_shop_preview, {
+                        name = card.name, mana_cost = card.mana_cost or "",
+                        type_line = card.type_line or "", scryfall_uri = card.scryfall_uri or "",
+                        color = color.code,
+                    })
+                else
+                    RP_shop_error = "One or more preview sources could not be decoded."
+                end
+            else
+                RP_shop_error = "One or more preview sources could not be downloaded."
+            end
+            remaining = remaining - 1
+            if remaining == 0 then
+                RP_shop_loading = false
+                table.sort(RP_shop_preview, function(a, b) return a.color < b.color end)
+                print("[Rogue's Passage] Shop preview ready: " .. tostring(#RP_shop_preview) .. " cards.")
+            end
+        end)
+    end
+end
+
 function RP_showShop(object, playerColor, altClick)
     local player = Player[playerColor]
     if not player then return end
     local record = RP_PlayerManager.register(player)
     local coins = tonumber(record and record.coins) or 10
-    broadcastToColor(
-        "Rogue's Passage | Coins: " .. tostring(coins) ..
-        " | Card shop: coming next. Purchases are not enabled yet.",
-        playerColor, {0.7, 0.9, 1}
-    )
+    broadcastToColor("Rogue's Passage shop | Balance: " .. tostring(coins) .. " coins", playerColor, {0.7, 0.9, 1})
+    if RP_shop_loading then
+        broadcastToColor("Shop preview is loading. Click again shortly.", playerColor, {1, 0.8, 0.3})
+        return
+    end
+    if #RP_shop_preview == 0 then
+        broadcastToColor(RP_shop_error or "Shop preview unavailable. Click again after reloading the table.", playerColor, {1, 0.6, 0.4})
+        return
+    end
+    broadcastToColor("PREVIEW ONLY - no prices or purchases yet. Inventory uses temporary starter-pool sources.", playerColor, {1, 0.8, 0.3})
+    for index, card in ipairs(RP_shop_preview) do
+        broadcastToColor(tostring(index) .. ". [" .. card.color .. "] " .. tostring(card.name) ..
+            " " .. tostring(card.mana_cost) .. " - " .. tostring(card.type_line) ..
+            " | " .. tostring(card.scryfall_uri), playerColor, {0.9, 0.9, 0.9})
+    end
 end
 
 function RP_createShopStation()
@@ -600,11 +652,11 @@ function RP_createShopStation()
     station.setName(RP_SHOP_STATION_NAME)
     -- Tint the supporting block to match the button instead of its default red.
     station.setColorTint({0.16, 0.20, 0.26})
-    station.setDescription("Click to view your saved coin balance and shop status. No purchases yet.")
+    station.setDescription("Click to see your coin balance and a read-only five-card shop preview. Purchases disabled.")
     station.setLock(true)
     station.clearButtons()
     station.createButton({
-        label = "SHOP - View Coins",
+        label = "SHOP - Browse Preview",
         click_function = "RP_showShop",
         function_owner = Global,
         -- Button coordinates are local to the block; the top surface is y=0.5.
@@ -641,6 +693,7 @@ function onLoad(saved_data)
     end
     RP_refreshUI()
     Wait.frames(RP_createShopStation, 3)
+    RP_loadShopPreview()
 end
 
 function onSave()
