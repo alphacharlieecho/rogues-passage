@@ -638,7 +638,6 @@ function RP_TableManager.createGuides(player)
             object.setName("RP " .. seat .. " " .. zone.key)
             object.TextTool.setValue(zone.label)
             object.TextTool.setFontSize(36)
-            object.TextTool.setColor({0.73, 0.85, 0.77})
             object.setLock(true)
             table.insert(RP_table_guides[seat], object.getGUID())
         end
