@@ -499,6 +499,7 @@ function RP_refreshUI()
     local seated = Player.getPlayers()
     for _, player in ipairs(seated) do
         local record = RP_PlayerManager.register(player)
+        if not record.starter_pool then
         local selected = record.selected_colors or {}
         local playerKey = rp_playerKey(player)
         local playerPools = RP_player_color_pools[playerKey] or {}
@@ -546,6 +547,7 @@ function RP_refreshUI()
                 (RP_pool_errors[playerKey .. ":" .. (selected[1] or "")] or
                     RP_pool_errors[playerKey .. ":" .. (selected[2] or "")] or
                     ((#selected == 2 and playerPools[selected[1]] and playerPools[selected[2]]) and "ready" or "loading")))))
+        end -- hide setup for players with generated pools
     end
 
     UI.setXml('<Panel id="rp_root">' .. table.concat(panels, "\n") .. '</Panel>')
