@@ -520,22 +520,12 @@ function RP_TableManager.createGuides(player)
         return false, "Player must have an active hand zone."
     end
     local seat = player.color
-    -- Idempotent: remove the previous guides for this seat before respawning.
-    for _, guid in ipairs(RP_table_guides[seat] or {}) do
-        local object = getObjectFromGUID(guid)
-        if object then object.destruct() end
-    end
-    RP_table_guides[seat] = {}
+    -- Reuse existing guides across save/load; do not duplicate them.\n    local existing = {}\n    for _, object in ipairs(getAllObjects()) do\n        local name = object.getName()\n        if name and name:sub(1, #("RP " .. seat .. " ")) == "RP " .. seat .. " " then\n            existing[name] = object\n        end\n    end\n    RP_table_guides[seat] = {}
     for _, zone in ipairs(RP_TABLE_ZONES) do
         local position = rp_seatPosition(hand, zone.x, zone.forward)
-        local object = spawnObject({
-            type = "3DText",
-            position = position,
-            rotation = { 90, (hand.rotation and hand.rotation.y) or 0, 0 },
-            sound = false,
-        })
+        local name = "RP " .. seat .. " " .. zone.key\n        local object = existing[name]\n        if not object then\n            object = spawnObject({\n                type = "3DText",\n                position = position,\n                rotation = { 90, (hand.rotation and hand.rotation.y) or 0, 0 },\n                sound = false,\n            })\n        end
         if object then
-            object.setName("RP " .. seat .. " " .. zone.key)
+            object.setName(name)
             object.TextTool.setValue(zone.label)
             object.TextTool.setFontSize(36)
             object.setLock(true)
@@ -608,7 +598,7 @@ function RP_refreshUI()
     UI.setXml('<Panel id="rp_root">' .. table.concat(panels, "\n") .. '</Panel>')
 end
 
-function onLoad(saved_data)
+local function rp_autoCreateGuides()\n    for _, player in ipairs(Player.getPlayers()) do\n        RP_TableManager.createGuides(player)\n    end\nend\n\nfunction onLoad(saved_data)
     if saved_data and saved_data ~= "" then
         local ok, saved = pcall(function() return JSON.decode(saved_data) end)
         if ok and type(saved) == "table" and type(saved.campaign) == "table" then
@@ -631,10 +621,7 @@ function onLoad(saved_data)
             RP_loadPlayerColorPool(player, color)
         end
     end
-    RP_refreshUI()
-end
-
-function onSave()
+    RP_refreshUI()\n    Wait.frames(rp_autoCreateGuides, 2)\nend\n\nfunction onSave()
     return JSON.encode({
         schema_version = 1,
         campaign = RP_campaign,
@@ -649,11 +636,7 @@ function onPlayerConnect(player)
     RP_refreshUI()
 end
 
-function onPlayerChangeColor(player_color)
-    local player = Player[player_color]
-    if player then RP_PlayerManager.register(player) end
-    RP_refreshUI()
-end
+function onPlayerChangeColor(player_color)\n    local player = Player[player_color]\n    if player then RP_PlayerManager.register(player) end\n    RP_refreshUI()\n    Wait.frames(rp_autoCreateGuides, 2)\nend
 
 function onPlayerDisconnect(player)
     RP_refreshUI()
