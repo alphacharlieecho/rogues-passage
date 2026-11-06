@@ -627,7 +627,7 @@ function RP_createLandDispensers()
     local existing = {}
     for _, object in ipairs(getAllObjects()) do
         local name = object.getName()
-        if name and name:sub(1, 18) == "RP Land Dispenser" then
+        if name and name:sub(1, #"RP Land Dispenser ") == "RP Land Dispenser " then
             existing[name] = object
         end
     end
@@ -649,7 +649,7 @@ function RP_createLandDispensers()
             dispenser.setVar("rp_land_name", land.name)
             dispenser.clearButtons()
             dispenser.createButton({
-                label = land.name .. "\\nTake land",
+                label = land.name .. " / Take land",
                 click_function = "RP_takeBasicLand",
                 function_owner = Global,
                 position = {0, 0.25, 0},
