@@ -598,6 +598,8 @@ function RP_createShopStation()
         return
     end
     station.setName(RP_SHOP_STATION_NAME)
+    -- Tint the supporting block to match the button instead of its default red.
+    station.setColorTint({0.16, 0.20, 0.26})
     station.setDescription("Click to view your saved coin balance and shop status. No purchases yet.")
     station.setLock(true)
     station.clearButtons()
