@@ -598,15 +598,16 @@ function RP_createShopStation()
         return
     end
     station.setName(RP_SHOP_STATION_NAME)
+    station.setColor({0.18, 0.22, 0.28})
     station.setDescription("Click to view your saved coin balance and shop status. No purchases yet.")
     station.setLock(true)
     station.clearButtons()
     station.createButton({
-        label = "ROGUE'S PASSAGE SHOP\\nView Coins",
+        label = "SHOP - View Coins",
         click_function = "RP_showShop",
         function_owner = Global,
-        position = {0, 0.25, 0},
-        width = 1350, height = 750, font_size = 160,
+        position = {0, 0.24, 0},
+        width = 1250, height = 420, font_size = 130,
         color = {0.16, 0.20, 0.26, 1},
         font_color = {1, 1, 1, 1},
     })
