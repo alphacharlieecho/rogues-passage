@@ -615,8 +615,7 @@ function RP_refreshUI()
                     ((#selected == 2 and playerPools[selected[1]] and playerPools[selected[2]]) and "ready" or "loading")))))
     end
 
-    UI.setXml('<Panel id="rp_root">' .. table.concat(panels, "
-") .. '</Panel>')
+    UI.setXml('<Panel id="rp_root">' .. table.concat(panels, "\n") .. '</Panel>')
 end
 
 local function rp_autoCreateGuides()
