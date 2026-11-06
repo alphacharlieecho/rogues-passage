@@ -250,7 +250,9 @@ function RP_DeckManager.spawnStarterPool(player, record)
         y = 1.5,
         z = hand.position.z + 8 * math.cos(radians),
     }
-    local rotation = { 0, yaw, 0 }
+    -- Face the starter deck toward its owner; TTS deck faces are inverted at hand yaw.
+    -- Keep the placement calculation unchanged so only card orientation changes.
+    local rotation = { 0, (yaw + 180) % 360, 0 }
 
     -- A TTS custom deck maps each CardID to its own one-card image sheet.
     -- This lets every card retain an independent face URL and a shared back.
