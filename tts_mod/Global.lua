@@ -598,7 +598,6 @@ function RP_createShopStation()
         return
     end
     station.setName(RP_SHOP_STATION_NAME)
-    station.setColor({0.18, 0.22, 0.28})
     station.setDescription("Click to view your saved coin balance and shop status. No purchases yet.")
     station.setLock(true)
     station.clearButtons()
